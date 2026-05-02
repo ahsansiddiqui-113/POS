@@ -35,24 +35,22 @@ export class CategoryService {
 
   getCategories(): string[] {
     const result = this.db
-      .prepare(
-        'SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category'
-      )
-      .all() as { category: string }[];
+      .prepare('SELECT name FROM categories ORDER BY name')
+      .all() as { name: string }[];
 
-    return result.map((r) => r.category);
+    return result.map((r) => r.name);
   }
 
   getCategoryWithCount(): Array<{ name: string; productCount: number }> {
     const result = this.db
       .prepare(
         `SELECT
-          category as name,
-          COUNT(*) as productCount
-        FROM products
-        WHERE category IS NOT NULL
-        GROUP BY category
-        ORDER BY category`
+          c.name,
+          COUNT(p.id) as productCount
+        FROM categories c
+        LEFT JOIN products p ON c.name = p.category
+        GROUP BY c.name
+        ORDER BY c.name`
       )
       .all() as Array<{ name: string; productCount: number }>;
 
@@ -66,14 +64,19 @@ export class CategoryService {
 
     const trimmedName = name.trim();
 
-    // Check if category already exists
+    // Check if category already exists in categories table
     const existing = this.db
-      .prepare('SELECT DISTINCT category FROM products WHERE category = ?')
-      .get(trimmedName) as { category: string } | undefined;
+      .prepare('SELECT name FROM categories WHERE name = ?')
+      .get(trimmedName) as { name: string } | undefined;
 
     if (existing) {
       throw new AppError(409, 'Category already exists');
     }
+
+    // Insert the category into the categories table
+    this.db
+      .prepare('INSERT INTO categories (name) VALUES (?)')
+      .run(trimmedName);
 
     // Log the creation
     if (userId > 0) {
@@ -90,14 +93,19 @@ export class CategoryService {
 
     const newNameTrimmed = newName.trim();
 
-    // Check if new category already exists
+    // Check if new category already exists in categories table
     const existing = this.db
-      .prepare('SELECT DISTINCT category FROM products WHERE category = ?')
-      .get(newNameTrimmed) as { category: string } | undefined;
+      .prepare('SELECT name FROM categories WHERE name = ?')
+      .get(newNameTrimmed) as { name: string } | undefined;
 
-    if (existing && existing.category !== oldName) {
+    if (existing && existing.name !== oldName) {
       throw new AppError(409, 'New category name already exists');
     }
+
+    // Update the category name in categories table
+    this.db
+      .prepare('UPDATE categories SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?')
+      .run(newNameTrimmed, oldName);
 
     // Update products with old category
     const count = (
@@ -136,6 +144,11 @@ export class CategoryService {
         `Cannot delete category. ${count} product(s) are using this category.`
       );
     }
+
+    // Delete the category from categories table
+    this.db
+      .prepare('DELETE FROM categories WHERE name = ?')
+      .run(name);
 
     // Log the deletion
     if (userId > 0) {

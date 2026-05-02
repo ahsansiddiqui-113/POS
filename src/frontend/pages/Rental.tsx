@@ -68,18 +68,21 @@ export default function Rental() {
   const [selectedRental, setSelectedRental] = useState<RentalTransaction | null>(null);
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const backendUrl = window.electron?.getBackendUrl?.() || 'http://localhost:3001';
 
   // Fetch rental items
   const fetchRentalItems = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/rental/items', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+      const res = await fetch(`${backendUrl}/api/rental/items`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
-      setRentalItems(data);
+      setRentalItems(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching rental items:', error);
+      setRentalItems([]);
     }
     setLoading(false);
   };
@@ -88,13 +91,15 @@ export default function Rental() {
   const fetchActiveRentals = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/rental/transactions/active', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+      const res = await fetch(`${backendUrl}/api/rental/transactions/active`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
-      setActiveRentals(data);
+      setActiveRentals(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching active rentals:', error);
+      setActiveRentals([]);
     }
     setLoading(false);
   };
@@ -103,13 +108,15 @@ export default function Rental() {
   const fetchOverdueRentals = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/rental/transactions/overdue', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+      const res = await fetch(`${backendUrl}/api/rental/transactions/overdue`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
-      setOverdueRentals(data);
+      setOverdueRentals(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching overdue rentals:', error);
+      setOverdueRentals([]);
     }
     setLoading(false);
   };
@@ -119,15 +126,17 @@ export default function Rental() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/rental/reports/revenue?startDate=${startDate}&endDate=${endDate}`,
+        `${backendUrl}/api/rental/reports/revenue?startDate=${startDate}&endDate=${endDate}`,
         {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
         }
       );
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
-      setRevenueSummary(data);
+      setRevenueSummary(typeof data === 'object' && data !== null ? data : null);
     } catch (error) {
       console.error('Error fetching revenue summary:', error);
+      setRevenueSummary(null);
     }
     setLoading(false);
   };
@@ -468,6 +477,264 @@ export default function Rental() {
           )}
         </div>
       </div>
+
+      {/* Create Rental Item Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Add Rental Item</h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                // TODO: Implement rental item creation
+                setShowCreateModal(false);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product ID
+                </label>
+                <input
+                  type="number"
+                  placeholder="Select product"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Unit Number
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., RENTAL-001"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Daily Rental Price (Rs.)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Weekly Rental Price (Rs.)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Monthly Rental Price (Rs.)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Security Deposit (Rs.)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition"
+                >
+                  Add Item
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Process Rental Modal */}
+      {showRentalModal && selectedRental && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Process Rental</h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                // TODO: Implement rental creation
+                setShowRentalModal(false);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Customer Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter customer name"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  placeholder="Enter phone number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Rental Type
+                </label>
+                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600">
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowRentalModal(false)}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition"
+                >
+                  Process Rental
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Return Item Modal */}
+      {showReturnModal && selectedRental && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Process Return</h3>
+            <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
+              <p className="text-sm"><strong>Customer:</strong> {selectedRental.customer_name}</p>
+              <p className="text-sm"><strong>Amount:</strong> Rs. {selectedRental.rental_amount.toLocaleString()}</p>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                // TODO: Implement return processing
+                setShowReturnModal(false);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Item Condition
+                </label>
+                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                  <option value="excellent">Excellent</option>
+                  <option value="good">Good</option>
+                  <option value="fair">Fair</option>
+                  <option value="poor">Poor</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Damage Charges (Rs.)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  defaultValue="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowReturnModal(false)}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition"
+                >
+                  Process Return
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

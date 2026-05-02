@@ -7,6 +7,8 @@ export interface SaleItem {
   productId: number;
   quantity: number;
   unitPrice: number;
+  discountPercentage?: number;
+  discountedPrice?: number;
 }
 
 export interface CreateSaleRequest {
@@ -78,13 +80,15 @@ export class SalesService {
 
       // Create sale items and update stock
       const itemStmt = this.db.prepare(`
-        INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal, discount_percentage, discounted_price)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
 
       for (const item of request.items) {
-        const subtotal = item.unitPrice * item.quantity;
-        itemStmt.run(saleId, item.productId, item.quantity, item.unitPrice, subtotal);
+        const discountPercentage = item.discountPercentage || 0;
+        const discountedPrice = item.discountedPrice || item.unitPrice;
+        const subtotal = discountedPrice * item.quantity;
+        itemStmt.run(saleId, item.productId, item.quantity, item.unitPrice, subtotal, discountPercentage, discountedPrice);
 
         // Update product quantity
         productService.updateStock(item.productId, -item.quantity);

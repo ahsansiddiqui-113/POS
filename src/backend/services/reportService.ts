@@ -18,32 +18,31 @@ export interface ReportData {
 export class ReportService {
   private db = getDatabase();
 
-  // Get daily sales data
+  // Get daily sales data with detailed transaction info
   getDailySalesReport(startDate: string, endDate: string): any {
-    const sales = salesService.getSalesByDateRange(startDate, endDate);
+    const transactions = this.db
+      .prepare(`
+        SELECT
+          s.id as sale_id,
+          s.sale_date,
+          s.payment_method,
+          s.total_amount,
+          u.username as user_name,
+          p.name as product_name,
+          si.quantity,
+          si.unit_price,
+          si.discount_percentage,
+          si.discounted_price
+        FROM sales s
+        JOIN users u ON s.user_id = u.id
+        JOIN sale_items si ON s.id = si.sale_id
+        JOIN products p ON si.product_id = p.id
+        WHERE DATE(s.sale_date) BETWEEN ? AND ?
+        ORDER BY s.sale_date DESC
+      `)
+      .all(startDate, endDate) as any[];
 
-    const dailyData = new Map<string, any>();
-
-    for (const sale of sales) {
-      const date = sale.sale_date.split(' ')[0];
-      if (!dailyData.has(date)) {
-        dailyData.set(date, {
-          date,
-          totalAmount: 0,
-          itemsCount: 0,
-          transactionCount: 0,
-        });
-      }
-
-      const day = dailyData.get(date);
-      day.totalAmount += sale.total_amount;
-      day.itemsCount += sale.items_count;
-      day.transactionCount += 1;
-    }
-
-    return Array.from(dailyData.values()).sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    return transactions;
   }
 
   // Get monthly sales summary
@@ -282,33 +281,33 @@ export class ReportService {
 
   private addDailySalesTable(doc: any, data: any[]): void {
     doc.fontSize(10).font('Helvetica-Bold');
-    doc.text('Date', 50, doc.y, { width: 100 });
-    doc.text('Sales', 150, doc.y, { width: 80, align: 'right' });
-    doc.text('Items', 230, doc.y, { width: 80, align: 'right' });
-    doc.text('Transactions', 310, doc.y, { width: 100, align: 'right' });
+    doc.text('Date', 50, doc.y, { width: 80 });
+    doc.text('User', 130, doc.y, { width: 70 });
+    doc.text('Product', 200, doc.y, { width: 100 });
+    doc.text('Qty', 300, doc.y, { width: 40, align: 'right' });
+    doc.text('Price', 340, doc.y, { width: 60, align: 'right' });
+    doc.text('Total', 400, doc.y, { width: 70, align: 'right' });
 
     doc.moveTo(50, doc.y + 5).lineTo(530, doc.y + 5).stroke();
     doc.moveDown();
 
-    doc.font('Helvetica').fontSize(9);
+    doc.font('Helvetica').fontSize(8);
 
-    let totalSales = 0;
-    let totalItems = 0;
-    let totalTransactions = 0;
+    let totalAmount = 0;
 
     for (const row of data) {
-      doc.text(row.date, 50, doc.y, { width: 100 });
-      doc.text(`₱${row.totalAmount.toFixed(2)}`, 150, doc.y, { width: 80, align: 'right' });
-      doc.text(row.itemsCount.toString(), 230, doc.y, { width: 80, align: 'right' });
-      doc.text(row.transactionCount.toString(), 310, doc.y, {
-        width: 100,
-        align: 'right',
-      });
+      const saleDate = row.sale_date.split(' ')[0];
+      const finalPrice = row.discounted_price || row.unit_price;
+      const lineTotal = finalPrice * row.quantity;
 
-      totalSales += row.totalAmount;
-      totalItems += row.itemsCount;
-      totalTransactions += row.transactionCount;
+      doc.text(saleDate, 50, doc.y, { width: 80 });
+      doc.text(row.user_name, 130, doc.y, { width: 70 });
+      doc.text(row.product_name, 200, doc.y, { width: 100 });
+      doc.text(row.quantity.toString(), 300, doc.y, { width: 40, align: 'right' });
+      doc.text(`₱${finalPrice.toFixed(2)}`, 340, doc.y, { width: 60, align: 'right' });
+      doc.text(`₱${lineTotal.toFixed(2)}`, 400, doc.y, { width: 70, align: 'right' });
 
+      totalAmount += lineTotal;
       doc.moveDown();
 
       if (doc.y > 700) {
@@ -318,10 +317,8 @@ export class ReportService {
 
     doc.moveTo(50, doc.y).lineTo(530, doc.y).stroke();
     doc.font('Helvetica-Bold');
-    doc.text('TOTAL', 50, doc.y + 5, { width: 100 });
-    doc.text(`₱${totalSales.toFixed(2)}`, 150, doc.y, { width: 80, align: 'right' });
-    doc.text(totalItems.toString(), 230, doc.y, { width: 80, align: 'right' });
-    doc.text(totalTransactions.toString(), 310, doc.y, { width: 100, align: 'right' });
+    doc.text('TOTAL', 50, doc.y + 5, { width: 300 });
+    doc.text(`₱${totalAmount.toFixed(2)}`, 400, doc.y, { width: 70, align: 'right' });
   }
 
   private addMonthlySalesTable(doc: any, data: any[]): void {
@@ -446,17 +443,31 @@ export class ReportService {
   }
 
   private addDailySalesExcel(worksheet: ExcelJS.Worksheet, data: any[]): void {
-    worksheet.addRow(['Date', 'Sales', 'Items', 'Transactions']);
+    worksheet.addRow(['Date', 'User', 'Product', 'Quantity', 'Unit Price', 'Discount %', 'Final Price', 'Total']);
     worksheet.getRow(worksheet.rowCount).font = { bold: true };
 
+    let totalAmount = 0;
     for (const row of data) {
+      const saleDate = row.sale_date.split(' ')[0];
+      const finalPrice = row.discounted_price || row.unit_price;
+      const lineTotal = finalPrice * row.quantity;
+      totalAmount += lineTotal;
+
       worksheet.addRow([
-        row.date,
-        row.totalAmount,
-        row.itemsCount,
-        row.transactionCount,
+        saleDate,
+        row.user_name,
+        row.product_name,
+        row.quantity,
+        row.unit_price,
+        row.discount_percentage || 0,
+        finalPrice,
+        lineTotal,
       ]);
     }
+
+    worksheet.addRow([]);
+    worksheet.addRow(['TOTAL', '', '', '', '', '', '', totalAmount]);
+    worksheet.getRow(worksheet.rowCount).font = { bold: true };
   }
 
   private addMonthlySalesExcel(worksheet: ExcelJS.Worksheet, data: any[]): void {

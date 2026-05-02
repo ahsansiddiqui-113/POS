@@ -1,5 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { initializeDatabase } from './database/db';
 import { logger } from './utils/logger';
 import { errorHandler, asyncHandler } from './middleware/errorHandler';
@@ -10,6 +14,7 @@ initializeDatabase();
 
 // Now import services after database initialization
 import { authService } from './services/authService';
+import { userService } from './services/userService';
 import { productService } from './services/productService';
 import { salesService } from './services/salesService';
 import { alertService } from './services/alertService';
@@ -43,11 +48,29 @@ export async function createApp(): Promise<Express> {
   });
 
   // ======================
+  // RATE LIMITING
+  // ======================
+
+  // NEW: Rate limiter for login endpoint (5 attempts per minute per IP)
+  const loginLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute window
+    max: 5, // Max 5 login attempts per window
+    message: 'Too many login attempts. Please try again later.',
+    standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    skip: (req: Request) => {
+      // Don't rate limit health check or other non-login requests
+      return false;
+    },
+  });
+
+  // ======================
   // AUTHENTICATION ROUTES
   // ======================
 
   appInstance.post(
     '/api/auth/login',
+    loginLimiter, // NEW: Apply rate limiter
     asyncHandler(async (req: Request, res: Response) => {
       const result = authService.login(req.body);
       res.json(result);
@@ -78,6 +101,101 @@ export async function createApp(): Promise<Express> {
   );
 
   // ======================
+  // USER MANAGEMENT ROUTES (Admin only)
+  // ======================
+
+  // Get all users
+  appInstance.get(
+    '/api/users',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const users = userService.getAllUsers();
+      res.json(users);
+    })
+  );
+
+  // Get single user
+  appInstance.get(
+    '/api/users/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const user = userService.getUser(parseInt(req.params.id));
+      if (user) {
+        res.json(user);
+      } else {
+        res.status(404).json({ error: 'User not found' });
+      }
+    })
+  );
+
+  // Update user
+  appInstance.put(
+    '/api/users/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const user = userService.updateUser(
+        parseInt(req.params.id),
+        req.body,
+        req.user!.id
+      );
+      res.json(user);
+    })
+  );
+
+  // Change user password (admin changing another user's password)
+  appInstance.post(
+    '/api/users/:id/change-password',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const { newPassword } = req.body;
+      const user = userService.changePasswordAsAdmin(
+        parseInt(req.params.id),
+        newPassword,
+        req.user!.id
+      );
+      res.json(user);
+    })
+  );
+
+  // Get user audit logs
+  appInstance.get(
+    '/api/users/:id/audit-logs',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const logs = userService.getUserAuditLogs(parseInt(req.params.id));
+      res.json(logs);
+    })
+  );
+
+  // Get all audit logs
+  appInstance.get(
+    '/api/audit-logs',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const logs = userService.getAllAuditLogs();
+      res.json(logs);
+    })
+  );
+
+  // ======================
   // PRODUCTS ROUTES
   // ======================
 
@@ -89,9 +207,13 @@ export async function createApp(): Promise<Express> {
       const search = req.query.search as string;
       const category = req.query.category as string;
 
+      console.log('[API] GET /api/products - page:', page, 'pageSize:', pageSize, 'search:', search, 'category:', category);
+
       const result = search
         ? productService.searchProducts(search, page, pageSize, { category })
         : productService.getAllProducts(page, pageSize, category);
+
+      console.log('[API] Response:', { total: result.total, count: result.data?.length, pages: result.pages });
 
       res.json(result);
     })
@@ -293,6 +415,36 @@ export async function createApp(): Promise<Express> {
         userId: req.user!.id,
       });
       res.status(201).json(purchase);
+    })
+  );
+
+  // NEW: Get all purchases with pagination and filters
+  appInstance.get(
+    '/api/purchases',
+    asyncHandler(async (req: Request, res: Response) => {
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      const search = req.query.search as string;
+      const productId = req.query.productId ? parseInt(req.query.productId as string) : undefined;
+      const supplierId = req.query.supplierId ? parseInt(req.query.supplierId as string) : undefined;
+
+      // Use filtered method if any filters are provided
+      if (startDate || endDate || search || productId || supplierId) {
+        const result = purchaseService.getPurchasesFiltered(page, pageSize, {
+          startDate,
+          endDate,
+          search,
+          productId,
+          supplierId,
+        });
+        res.json(result);
+      } else {
+        // Get all purchases with pagination
+        const result = purchaseService.getAllPurchases(page, pageSize);
+        res.json(result);
+      }
     })
   );
 

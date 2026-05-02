@@ -10,6 +10,9 @@ interface CartItem {
   unitPrice: number;
   quantity: number;
   subtotal: number;
+  purchasePrice: number;
+  discountPercentage: number;
+  discountedPrice: number;
 }
 
 const POS: React.FC = () => {
@@ -28,6 +31,8 @@ const POS: React.FC = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [selectedProductForQuantity, setSelectedProductForQuantity] = useState<any | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [selectedDiscount, setSelectedDiscount] = useState(0);
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   const { execute: searchProduct } = useApi('/api/products/barcode/:barcode');
   const { execute: createSale } = useApi('/api/sales', { method: 'POST' });
@@ -59,17 +64,43 @@ const POS: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setSearchResults(data.products || []);
+        setSearchResults(data.data || []);
       }
     } catch (err) {
       console.error('Search error:', err);
     }
   };
 
+  // Validate discount
+  const validateDiscount = (product: any, discount: number): { valid: boolean; message: string } => {
+    if (discount < 0 || discount > 100) {
+      return { valid: false, message: 'Discount must be between 0 and 100%' };
+    }
+
+    // Maximum discount allowed is 20%
+    if (discount > 20) {
+      return { valid: false, message: `Discount cannot exceed 20%. You entered ${discount}%` };
+    }
+
+    const discountedPrice = product.sale_price_per_unit * (1 - discount / 100);
+    const minAllowedPrice = product.purchase_price_per_unit * 1.2; // 20% markup minimum
+
+    if (discountedPrice < minAllowedPrice) {
+      const maxDiscount = ((product.sale_price_per_unit - minAllowedPrice) / product.sale_price_per_unit) * 100;
+      return {
+        valid: false,
+        message: `Discount too high! Minimum sale price is Rs.${minAllowedPrice.toFixed(2)} (20% markup). Max discount allowed: ${Math.min(20, maxDiscount).toFixed(2)}%`,
+      };
+    }
+
+    return { valid: true, message: '' };
+  };
+
   // Add searched product to cart
   const handleAddSearchedProduct = () => {
     if (!selectedProductForQuantity || selectedQuantity <= 0) return;
 
+    setDiscountError(null);
     const product = selectedProductForQuantity;
 
     if (product.quantity_available <= 0) {
@@ -82,6 +113,16 @@ const POS: React.FC = () => {
       return;
     }
 
+    // Validate discount if provided
+    if (selectedDiscount > 0) {
+      const validation = validateDiscount(product, selectedDiscount);
+      if (!validation.valid) {
+        setDiscountError(validation.message);
+        return;
+      }
+    }
+
+    const discountedPrice = product.sale_price_per_unit * (1 - selectedDiscount / 100);
     const existingItem = cart.find((item) => item.productId === product.id);
 
     if (existingItem) {
@@ -90,25 +131,37 @@ const POS: React.FC = () => {
         setError(`Cannot add more. Only ${product.quantity_available} total available`);
         return;
       }
-      updateQuantity(product.id, newQuantity);
+      const updatedItem = {
+        ...existingItem,
+        quantity: newQuantity,
+        discountPercentage: selectedDiscount,
+        discountedPrice: discountedPrice,
+        subtotal: discountedPrice * newQuantity,
+      };
+      setCart(cart.map((item) => (item.productId === product.id ? updatedItem : item)));
     } else {
       const newItem: CartItem = {
         productId: product.id,
         barcode: product.barcode,
         name: product.name,
         unitPrice: product.sale_price_per_unit,
+        purchasePrice: product.purchase_price_per_unit,
         quantity: selectedQuantity,
-        subtotal: product.sale_price_per_unit * selectedQuantity,
+        discountPercentage: selectedDiscount,
+        discountedPrice: discountedPrice,
+        subtotal: discountedPrice * selectedQuantity,
       };
       setCart([...cart, newItem]);
     }
 
-    setSuccess(`Added ${selectedQuantity}x ${product.name}`);
+    const discountText = selectedDiscount > 0 ? ` with ${selectedDiscount}% discount` : '';
+    setSuccess(`Added ${selectedQuantity}x ${product.name}${discountText}`);
     setShowSearchModal(false);
     setSearchInput('');
     setSearchResults([]);
     setSelectedProductForQuantity(null);
     setSelectedQuantity(1);
+    setSelectedDiscount(0);
     barcodeInputRef.current?.focus();
 
     setTimeout(() => setSuccess(null), 2000);
@@ -167,7 +220,7 @@ const POS: React.FC = () => {
             ? {
                 ...item,
                 quantity: newQuantity,
-                subtotal: item.unitPrice * newQuantity,
+                subtotal: item.discountedPrice * newQuantity,
               }
             : item
         );
@@ -179,7 +232,10 @@ const POS: React.FC = () => {
           barcode: product.barcode,
           name: product.name,
           unitPrice: product.sale_price_per_unit,
+          purchasePrice: product.purchase_price_per_unit,
           quantity: 1,
+          discountPercentage: 0,
+          discountedPrice: product.sale_price_per_unit,
           subtotal: product.sale_price_per_unit,
         };
         setCart([...cart, cartItem]);
@@ -214,16 +270,47 @@ const POS: React.FC = () => {
       return;
     }
 
+    // Validate all discounts before checkout
+    const invalidItems: string[] = [];
+    for (const item of cart) {
+      if (item.discountPercentage > 0) {
+        const minAllowedPrice = item.purchasePrice * 1.2;
+        console.log(`[POS Checkout] ${item.name}:`, {
+          discountPercentage: item.discountPercentage,
+          discountedPrice: item.discountedPrice,
+          purchasePrice: item.purchasePrice,
+          minAllowedPrice: minAllowedPrice,
+          isValid: item.discountedPrice >= minAllowedPrice,
+        });
+
+        if (item.discountedPrice < minAllowedPrice) {
+          invalidItems.push(
+            `${item.name}: Final price Rs.${item.discountedPrice.toFixed(2)} is below minimum Rs.${minAllowedPrice.toFixed(2)} (${item.discountPercentage}% discount)`
+          );
+        }
+      }
+    }
+
+    if (invalidItems.length > 0) {
+      setError(`❌ Pricing validation failed:\n${invalidItems.join('\n')}`);
+      return;
+    }
+
     try {
       const saleData = {
         items: cart.map((item) => ({
-          product_id: item.productId,
+          productId: item.productId,
           quantity: item.quantity,
-          unit_price: item.unitPrice,
+          unitPrice: item.unitPrice,
+          discountPercentage: item.discountPercentage,
+          discountedPrice: item.discountedPrice,
         })),
         payment_method: paymentMethod,
         total_amount: total,
+        userId: 1, // TODO: Get from auth context
       };
+
+      console.log('[POS Checkout] Sending sale data:', saleData);
 
       const response = await createSale({
         body: JSON.stringify(saleData),
@@ -239,7 +326,9 @@ const POS: React.FC = () => {
         setTimeout(() => setSuccess(null), 3000);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Checkout failed');
+      const errorMsg = err instanceof Error ? err.message : 'Checkout failed';
+      console.error('[POS Checkout] Error:', errorMsg);
+      setError(errorMsg);
     }
   };
 
@@ -260,7 +349,7 @@ const POS: React.FC = () => {
         ? {
             ...item,
             quantity,
-            subtotal: item.unitPrice * quantity,
+            subtotal: item.discountedPrice * quantity,
           }
         : item
     );
@@ -293,7 +382,7 @@ const POS: React.FC = () => {
         <div className="col-span-2">
           {/* Alerts */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4 whitespace-pre-wrap">
               {error}
             </div>
           )}
@@ -337,6 +426,8 @@ const POS: React.FC = () => {
                   <th className="px-4 py-2 text-left">Product</th>
                   <th className="px-4 py-2 text-center">Qty</th>
                   <th className="px-4 py-2 text-right">Price</th>
+                  <th className="px-4 py-2 text-center">Discount</th>
+                  <th className="px-4 py-2 text-right">Final Price</th>
                   <th className="px-4 py-2 text-right">Subtotal</th>
                   <th className="px-4 py-2 text-center">Action</th>
                 </tr>
@@ -344,7 +435,7 @@ const POS: React.FC = () => {
               <tbody>
                 {cart.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-600">
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-600">
                       Cart is empty. Start scanning products.
                     </td>
                   </tr>
@@ -365,6 +456,18 @@ const POS: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-right">
                         Rs.{item.unitPrice.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {item.discountPercentage > 0 ? (
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded font-semibold text-sm">
+                            -{item.discountPercentage}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold">
+                        Rs.{item.discountedPrice.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right font-bold">
                         Rs.{item.subtotal.toFixed(2)}
@@ -391,18 +494,49 @@ const POS: React.FC = () => {
 
           {/* Totals */}
           <div className="space-y-3 mb-6">
-            <div className="flex justify-between text-gray-600">
-              <span>Subtotal:</span>
-              <span className="font-bold">Rs.{subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-gray-600">
-              <span>Tax (10%):</span>
-              <span className="font-bold">Rs.{tax.toFixed(2)}</span>
-            </div>
-            <div className="border-t-2 pt-3 flex justify-between text-2xl font-bold text-blue-600">
-              <span>Total:</span>
-              <span>Rs.{total.toFixed(2)}</span>
-            </div>
+            {cart.length > 0 && (
+              <>
+                {/* Original Price */}
+                {cart.some((item) => item.discountPercentage > 0) && (
+                  <div className="flex justify-between text-gray-500 line-through">
+                    <span>Original Subtotal:</span>
+                    <span className="font-bold">
+                      Rs.{cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Discount Savings */}
+                {cart.some((item) => item.discountPercentage > 0) && (
+                  <div className="flex justify-between text-green-600 bg-green-50 px-3 py-2 rounded">
+                    <span className="font-semibold">Discount Savings:</span>
+                    <span className="font-bold">
+                      -Rs.{(
+                        cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) - subtotal
+                      ).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Current Subtotal */}
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal (after discount):</span>
+                  <span className="font-bold">Rs.{subtotal.toFixed(2)}</span>
+                </div>
+
+                {/* Tax */}
+                <div className="flex justify-between text-gray-600">
+                  <span>Tax (10%):</span>
+                  <span className="font-bold">Rs.{tax.toFixed(2)}</span>
+                </div>
+
+                {/* Total */}
+                <div className="border-t-2 pt-3 flex justify-between text-2xl font-bold text-blue-600">
+                  <span>Total:</span>
+                  <span>Rs.{total.toFixed(2)}</span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Payment Method */}
@@ -515,8 +649,11 @@ const POS: React.FC = () => {
                   <h3 className="font-semibold text-lg mb-2">
                     {selectedProductForQuantity.name}
                   </h3>
-                  <p className="text-sm text-gray-600 mb-2">
-                    Price: Rs. {selectedProductForQuantity.sale_price_per_unit} per unit
+                  <p className="text-sm text-gray-600 mb-1">
+                    Sale Price: Rs. {selectedProductForQuantity.sale_price_per_unit} per unit
+                  </p>
+                  <p className="text-xs text-gray-500 mb-2">
+                    (Purchase Price: Rs. {selectedProductForQuantity.purchase_price_per_unit} - Min Markup: 20%)
                   </p>
                   <p className="text-sm text-gray-600">
                     Available: {selectedProductForQuantity.quantity_available} units
@@ -558,10 +695,51 @@ const POS: React.FC = () => {
                   </button>
                 </div>
 
+                {/* Discount Section */}
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Discount (Optional):
+                </label>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={selectedDiscount === 0 ? '' : selectedDiscount}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setSelectedDiscount(0);
+                      } else {
+                        const num = Math.max(0, Math.min(100, parseInt(val) || 0));
+                        setSelectedDiscount(num);
+                      }
+                      setDiscountError(null);
+                    }}
+                    placeholder="0"
+                    className="flex-1 px-4 py-2 border-2 border-orange-600 rounded text-center text-lg font-semibold"
+                  />
+                  <span className="flex items-center px-3 font-semibold text-gray-700">%</span>
+                </div>
+
+                {discountError && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm mb-4">
+                    {discountError}
+                  </div>
+                )}
+
                 <div className="bg-white p-3 rounded border mb-4">
+                  {selectedDiscount > 0 && (
+                    <div className="mb-2 pb-2 border-b">
+                      <p className="text-sm text-gray-600">
+                        Original: Rs. {(selectedProductForQuantity.sale_price_per_unit * selectedQuantity).toFixed(2)}
+                      </p>
+                      <p className="text-sm text-green-600 font-semibold">
+                        After Discount: Rs. {(selectedProductForQuantity.sale_price_per_unit * (1 - selectedDiscount / 100) * selectedQuantity).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
                   <p className="text-lg font-semibold">
                     Total: Rs.{' '}
-                    {(selectedProductForQuantity.sale_price_per_unit * selectedQuantity).toFixed(2)}
+                    {(selectedProductForQuantity.sale_price_per_unit * (1 - selectedDiscount / 100) * selectedQuantity).toFixed(2)}
                   </p>
                 </div>
               </div>

@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard';
 import POS from './pages/POS';
 import Inventory from './pages/Inventory';
 import Purchase from './pages/Purchase';
+import PurchaseHistory from './pages/PurchaseHistory';
+import Suppliers from './pages/Suppliers';
 import Returns from './pages/Returns';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
@@ -21,7 +23,19 @@ const PrivateRoute: React.FC<{ element: React.ReactElement; allowedRoles?: strin
   element,
   allowedRoles,
 }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isInitialized } = useAuth();
+
+  // Show loading while auth is being initialized
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
@@ -59,6 +73,14 @@ const AppContent: React.FC = () => {
       <Route
         path="/purchase"
         element={<PrivateRoute element={<Purchase />} allowedRoles={['Admin']} />}
+      />
+      <Route
+        path="/purchase-history"
+        element={<PrivateRoute element={<PurchaseHistory />} allowedRoles={['Admin']} />}
+      />
+      <Route
+        path="/suppliers"
+        element={<PrivateRoute element={<Suppliers />} allowedRoles={['Admin']} />}
       />
       <Route
         path="/returns"

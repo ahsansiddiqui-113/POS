@@ -173,6 +173,132 @@ export class PurchaseService {
 
     return result.avg_price;
   }
+
+  getAllPurchases(page: number = 1, pageSize: number = 20): any {
+    const offset = (page - 1) * pageSize;
+
+    const countResult = this.db
+      .prepare('SELECT COUNT(*) as total FROM purchases')
+      .get() as { total: number };
+    const total = countResult.total;
+
+    const purchases = this.db
+      .prepare(`
+        SELECT
+          p.id,
+          p.product_id,
+          p.supplier_id,
+          p.quantity,
+          p.unit_price,
+          p.total_bulk_price,
+          p.purchase_date,
+          p.expiry_date,
+          p.user_id,
+          prod.name as product_name,
+          prod.sku,
+          sup.name as supplier_name,
+          sup.contact as supplier_contact
+        FROM purchases p
+        LEFT JOIN products prod ON p.product_id = prod.id
+        LEFT JOIN suppliers sup ON p.supplier_id = sup.id
+        ORDER BY p.purchase_date DESC
+        LIMIT ? OFFSET ?
+      `)
+      .all(pageSize, offset) as any[];
+
+    return {
+      data: purchases,
+      total,
+      page,
+      pageSize,
+      pages: Math.ceil(total / pageSize),
+    };
+  }
+
+  getPurchasesFiltered(
+    page: number = 1,
+    pageSize: number = 20,
+    filters?: {
+      startDate?: string;
+      endDate?: string;
+      search?: string;
+      productId?: number;
+      supplierId?: number;
+    }
+  ): any {
+    const offset = (page - 1) * pageSize;
+    const params: any[] = [];
+    let whereClause = 'WHERE 1=1';
+
+    if (filters?.startDate) {
+      whereClause += ' AND DATE(p.purchase_date) >= ?';
+      params.push(filters.startDate);
+    }
+
+    if (filters?.endDate) {
+      whereClause += ' AND DATE(p.purchase_date) <= ?';
+      params.push(filters.endDate);
+    }
+
+    if (filters?.search) {
+      const searchTerm = `%${filters.search}%`;
+      whereClause += ' AND (prod.name LIKE ? OR sup.name LIKE ?)';
+      params.push(searchTerm, searchTerm);
+    }
+
+    if (filters?.productId) {
+      whereClause += ' AND p.product_id = ?';
+      params.push(filters.productId);
+    }
+
+    if (filters?.supplierId) {
+      whereClause += ' AND p.supplier_id = ?';
+      params.push(filters.supplierId);
+    }
+
+    const countQuery = `
+      SELECT COUNT(*) as total FROM purchases p
+      LEFT JOIN products prod ON p.product_id = prod.id
+      LEFT JOIN suppliers sup ON p.supplier_id = sup.id
+      ${whereClause}
+    `;
+    const countResult = this.db.prepare(countQuery).get(...params) as { total: number };
+    const total = countResult.total;
+
+    const dataQuery = `
+      SELECT
+        p.id,
+        p.product_id,
+        p.supplier_id,
+        p.quantity,
+        p.unit_price,
+        p.total_bulk_price,
+        p.purchase_date,
+        p.expiry_date,
+        p.user_id,
+        prod.name as product_name,
+        prod.sku,
+        sup.name as supplier_name,
+        sup.contact as supplier_contact
+      FROM purchases p
+      LEFT JOIN products prod ON p.product_id = prod.id
+      LEFT JOIN suppliers sup ON p.supplier_id = sup.id
+      ${whereClause}
+      ORDER BY p.purchase_date DESC
+      LIMIT ? OFFSET ?
+    `;
+    params.push(pageSize, offset);
+
+    const purchases = this.db.prepare(dataQuery).all(...params) as any[];
+
+    return {
+      data: purchases,
+      total,
+      page,
+      pageSize,
+      pages: Math.ceil(total / pageSize),
+    };
+  }
 }
 
 export const purchaseService = new PurchaseService();

@@ -71,7 +71,7 @@ const Login: React.FC = () => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="e.g., admin or jewellery_user"
+                  placeholder="Enter your username"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
                   disabled={loading}
                   autoComplete="username"
@@ -126,14 +126,8 @@ const Login: React.FC = () => {
           {/* Info Section */}
           <div className="mt-6 pt-6 border-t border-gray-200 text-center text-xs text-gray-600 space-y-2">
             <p className="font-semibold text-gray-700 mb-3">📍 Pakistan Enterprise POS System</p>
-            <p>
-              <strong>Admin:</strong> admin / 123kfg213
-            </p>
-            <p>
-              <strong>Other Users:</strong> Use default password: <span className="font-mono bg-gray-100 px-2 py-1 rounded">password123</span>
-            </p>
-            <p className="text-gray-500 mt-4">
-              Available usernames: admin, jewellery_user, cosmetics_user, purse_user, clothes_user
+            <p className="text-gray-600">
+              Please contact your administrator for login credentials
             </p>
             <p className="text-blue-600 font-semibold mt-4">💰 All prices in PKR (Pakistani Rupees)</p>
           </div>

@@ -16,6 +16,8 @@ import {
   FaTag,
   FaGift,
   FaPercent,
+  FaTruck,
+  FaUsers,
 } from 'react-icons/fa';
 
 interface Alert {
@@ -81,85 +83,123 @@ const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Navigation */}
-      <nav className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto">
-          <button
-            onClick={() => navigate('/pos')}
-            className="px-4 py-3 text-blue-600 border-b-2 border-blue-600 font-medium flex items-center gap-2 hover:bg-blue-50 whitespace-nowrap"
-          >
-            {React.createElement(FaShoppingCart as any, { size: 18 })}
-            POS
-          </button>
-          <button
-            onClick={() => navigate('/inventory')}
-            className="px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-          >
-            {React.createElement(FaBox as any, { size: 18 })}
-            Inventory
-          </button>
-          <button
-            onClick={() => navigate('/returns')}
-            className="px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-          >
-            {React.createElement(FaExchangeAlt as any, { size: 18 })}
-            Returns
-          </button>
-          <button
-            onClick={() => navigate('/rental')}
-            className="px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-          >
-            {React.createElement(FaGift as any, { size: 18 })}
-            Rental
-          </button>
-          <button
-            onClick={() => navigate('/settings')}
-            className="px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-          >
-            {React.createElement(FaCogs as any, { size: 18 })}
-            Settings
-          </button>
-          {user?.role === 'Admin' && (
-            <>
-              <button
-                onClick={() => navigate('/purchase')}
-                className="px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-              >
-                {React.createElement(FaClipboardList as any, { size: 18 })}
-                Purchase
-              </button>
-              <button
-                onClick={() => navigate('/reports')}
-                className="px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-              >
-                {React.createElement(FaChartBar as any, { size: 18 })}
-                Reports
-              </button>
-              <button
-                onClick={() => navigate('/audit-log')}
-                className="px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-              >
-                {React.createElement(FaHistory as any, { size: 18 })}
-                Audit Log
-              </button>
-              <button
-                onClick={() => navigate('/categories')}
-                className="px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-              >
-                {React.createElement(FaTag as any, { size: 18 })}
-                Categories
-              </button>
-              <button
-                onClick={() => navigate('/bulk-pricing')}
-                className="px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-              >
-                {React.createElement(FaPercent as any, { size: 18 })}
-                Bulk Pricing
-              </button>
-            </>
-          )}
+      {/* Navigation - Menu Grid */}
+      <div className="bg-white border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Menu</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {/* Core Operations */}
+            <button
+              onClick={() => navigate('/pos')}
+              className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+            >
+              {React.createElement(FaShoppingCart as any, { size: 24 })}
+              <span className="text-sm">POS</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/inventory')}
+              className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+            >
+              {React.createElement(FaBox as any, { size: 24 })}
+              <span className="text-sm">Inventory</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/returns')}
+              className="bg-orange-600 hover:bg-orange-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+            >
+              {React.createElement(FaExchangeAlt as any, { size: 24 })}
+              <span className="text-sm">Returns</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/rental')}
+              className="bg-pink-600 hover:bg-pink-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+            >
+              {React.createElement(FaGift as any, { size: 24 })}
+              <span className="text-sm">Rental</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/settings')}
+              className="bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+            >
+              {React.createElement(FaCogs as any, { size: 24 })}
+              <span className="text-sm">Settings</span>
+            </button>
+
+            {/* Admin Only Section */}
+            {user?.role === 'Admin' && (
+              <>
+                <button
+                  onClick={() => navigate('/purchase')}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaClipboardList as any, { size: 24 })}
+                  <span className="text-sm">Purchase</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/purchase-history')}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaHistory as any, { size: 24 })}
+                  <span className="text-sm">History</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/suppliers')}
+                  className="bg-amber-600 hover:bg-amber-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaTruck as any, { size: 24 })}
+                  <span className="text-sm">Suppliers</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/reports')}
+                  className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaChartBar as any, { size: 24 })}
+                  <span className="text-sm">Reports</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/categories')}
+                  className="bg-teal-600 hover:bg-teal-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaTag as any, { size: 24 })}
+                  <span className="text-sm">Categories</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/audit-log')}
+                  className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaFileAlt as any, { size: 24 })}
+                  <span className="text-sm">Audit Log</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/users')}
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaUsers as any, { size: 24 })}
+                  <span className="text-sm">Users</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/bulk-pricing')}
+                  className="bg-lime-600 hover:bg-lime-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaPercent as any, { size: 24 })}
+                  <span className="text-sm">Pricing</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      </nav>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8 flex-grow">

@@ -14,6 +14,7 @@ export interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  isInitialized: boolean;
   error: string | null;
 }
 
@@ -25,21 +26,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Load stored auth from localStorage on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('auth_token');
-    const storedUser = localStorage.getItem('auth_user');
+    try {
+      const storedToken = localStorage.getItem('auth_token');
+      const storedUser = localStorage.getItem('auth_user');
 
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (err) {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
+      if (storedToken && storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          // Verify token is valid by checking if it can be decoded
+          // A simple check: JWT tokens are base64 encoded with 3 parts separated by dots
+          const tokenParts = storedToken.split('.');
+          if (tokenParts.length === 3) {
+            setToken(storedToken);
+            setUser(user);
+          } else {
+            // Invalid token format
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_user');
+          }
+        } catch (err) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user');
+        }
       }
+    } finally {
+      // Mark initialization as complete regardless of result
+      setIsInitialized(true);
     }
   }, []);
 
@@ -92,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     login,
     logout,
     loading,
+    isInitialized,
     error,
   };
 

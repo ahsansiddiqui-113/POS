@@ -106,26 +106,59 @@ const Reports: React.FC = () => {
     if (Array.isArray(reportData) && reportData.length > 0) {
       // Array of records
       const keys = Object.keys(reportData[0]);
+
+      // Format column headers
+      const formatHeader = (key: string) => {
+        const headerMap: { [key: string]: string } = {
+          'sale_id': 'Sale ID',
+          'sale_date': 'Date & Time',
+          'user_name': 'User',
+          'product_name': 'Product',
+          'quantity': 'Qty',
+          'unit_price': 'Unit Price (Rs.)',
+          'discount_percentage': 'Discount %',
+          'discounted_price': 'Final Price (Rs.)',
+          'payment_method': 'Payment Method',
+          'total_amount': 'Total Amount (Rs.)',
+        };
+        return headerMap[key] || key.replace(/_/g, ' ');
+      };
+
+      const formatValue = (key: string, value: any) => {
+        if (value === null || value === undefined) return '-';
+        if (key.includes('price') || key.includes('amount') || key === 'total_amount') {
+          return typeof value === 'number' ? value.toFixed(2) : value;
+        }
+        if (key === 'sale_date') {
+          return new Date(value).toLocaleString();
+        }
+        return value;
+      };
+
       return (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-blue-100 sticky top-0">
                 {keys.map((key) => (
-                  <th key={key} className="border px-4 py-2 text-left">
-                    {key.replace(/_/g, ' ')}
+                  <th key={key} className="border px-3 py-2 text-left font-bold">
+                    {formatHeader(key)}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {reportData.map((row: any, idx: number) => (
-                <tr key={idx} className="hover:bg-gray-50">
+                <tr key={idx} className="hover:bg-gray-50 border-b">
                   {keys.map((key) => (
-                    <td key={key} className="border px-4 py-2">
-                      {typeof row[key] === 'number'
-                        ? row[key].toFixed(2)
-                        : row[key]}
+                    <td
+                      key={key}
+                      className="border px-3 py-2"
+                      style={{
+                        textAlign: (key.includes('price') || key.includes('amount') || key.includes('quantity')) ? 'right' : 'left'
+                      }}
+                    >
+                      {formatValue(key, row[key])}
                     </td>
                   ))}
                 </tr>

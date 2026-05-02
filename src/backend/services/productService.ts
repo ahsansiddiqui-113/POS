@@ -150,14 +150,22 @@ export class ProductService {
       params.push(category);
     }
 
+    console.log('[ProductService] getAllProducts - countQuery:', countQuery, 'params:', params);
     const total = this.db.prepare(countQuery).get(...params) as { total: number };
+    console.log('[ProductService] Total products in DB:', total.total);
 
+    console.log('[ProductService] dataQuery:', dataQuery, 'offset:', offset, 'pageSize:', pageSize);
     const data = this.db
       .prepare(
         dataQuery +
           ' ORDER BY updated_at DESC LIMIT ? OFFSET ?'
       )
       .all(...params, pageSize, offset) as Product[];
+
+    console.log('[ProductService] Data returned:', data.length, 'products');
+    if (data.length > 0) {
+      console.log('[ProductService] First product:', data[0]);
+    }
 
     return {
       data,

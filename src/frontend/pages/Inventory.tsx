@@ -77,7 +77,13 @@ const Inventory: React.FC = () => {
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const backendUrl = 'http://localhost:3001';
-  const { data, loading } = useApi<any>(`/api/products?page=${page}&pageSize=20&search=${search}`);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { data, loading, execute } = useApi<any>(`/api/products?page=${page}&pageSize=20&search=${search}&refresh=${refreshTrigger}`);
+
+  // Fetch products on page/search/refresh change
+  useEffect(() => {
+    execute();
+  }, [page, search, refreshTrigger, execute]);
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -100,14 +106,21 @@ const Inventory: React.FC = () => {
 
   // Fetch categories on mount
   useEffect(() => {
+    console.log('[Inventory] Component mounted, fetching categories');
     fetchCategories();
   }, [token]);
 
   // Update products when data changes
   useEffect(() => {
+    console.log('[Inventory] Data changed:', data);
     if (data) {
+      console.log('[Inventory] Products array:', data.data);
+      console.log('[Inventory] Total pages:', data.pages);
+      console.log('[Inventory] Setting products count:', (data.data || []).length);
       setProducts(data.data || []);
       setTotalPages(data.pages || 1);
+    } else {
+      console.log('[Inventory] Data is null/undefined');
     }
   }, [data]);
 
@@ -235,7 +248,7 @@ const Inventory: React.FC = () => {
             sale_price_per_unit: formData.sale_price_per_unit,
             low_stock_threshold: formData.low_stock_threshold,
             brand: formData.brand,
-            sub_category: formData.category,
+            category: formData.category,
           }
         : formData;
 
@@ -250,14 +263,38 @@ const Inventory: React.FC = () => {
 
       if (!response.ok) {
         const error = await response.json();
+        // If it's a 409 conflict (duplicate barcode/SKU), still refresh to show the existing product
+        if (response.status === 409) {
+          setSuccessMessage('Product already exists. Refreshing inventory...');
+          setShowForm(false);
+          setPage(1);
+          setRefreshTrigger(prev => prev + 1);
+          return;
+        }
         setErrorMessage(error.error || 'Failed to save product');
         return;
       }
 
       setSuccessMessage(editingId ? 'Product updated successfully' : 'Product created successfully');
       setShowForm(false);
-      // Refresh products
-      window.location.reload();
+      // Reset form and refresh products
+      setFormData({
+        sku: '',
+        barcode: '',
+        name: '',
+        category: '',
+        brand: '',
+        description: '',
+        purchase_price_per_unit: 0,
+        sale_price_per_unit: 0,
+        quantity_available: 0,
+        low_stock_threshold: 10,
+        expiry_date: '',
+      });
+      setEditingId(null);
+      setPage(1);
+      // Trigger a refresh of the products list without reloading the page
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       setErrorMessage('Error saving product');
       console.error(error);
@@ -442,8 +479,11 @@ const Inventory: React.FC = () => {
                     step="0.01"
                     min="0"
                     disabled={!!editingId}
-                    value={formData.purchase_price_per_unit}
-                    onChange={(e) => setFormData({ ...formData, purchase_price_per_unit: parseFloat(e.target.value) || 0 })}
+                    value={formData.purchase_price_per_unit || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, purchase_price_per_unit: val === '' ? 0 : parseFloat(val) || 0 });
+                    }}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 ${formErrors.purchase_price_per_unit ? 'border-red-500' : ''}`}
                     placeholder="0.00"
                   />
@@ -457,8 +497,11 @@ const Inventory: React.FC = () => {
                     type="number"
                     step="0.01"
                     min="0"
-                    value={formData.sale_price_per_unit}
-                    onChange={(e) => setFormData({ ...formData, sale_price_per_unit: parseFloat(e.target.value) || 0 })}
+                    value={formData.sale_price_per_unit || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, sale_price_per_unit: val === '' ? 0 : parseFloat(val) || 0 });
+                    }}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 ${formErrors.sale_price_per_unit ? 'border-red-500' : ''}`}
                     placeholder="0.00"
                   />
@@ -471,8 +514,11 @@ const Inventory: React.FC = () => {
                   <input
                     type="number"
                     min="0"
-                    value={formData.quantity_available}
-                    onChange={(e) => setFormData({ ...formData, quantity_available: parseInt(e.target.value) || 0 })}
+                    value={formData.quantity_available || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, quantity_available: val === '' ? 0 : parseInt(val) || 0 });
+                    }}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 ${formErrors.quantity_available ? 'border-red-500' : ''}`}
                     placeholder="0"
                   />
@@ -485,8 +531,11 @@ const Inventory: React.FC = () => {
                   <input
                     type="number"
                     min="0"
-                    value={formData.low_stock_threshold}
-                    onChange={(e) => setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 0 })}
+                    value={formData.low_stock_threshold || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, low_stock_threshold: val === '' ? 0 : parseInt(val) || 0 });
+                    }}
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                     placeholder="10"
                   />
@@ -591,25 +640,19 @@ const Inventory: React.FC = () => {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-gray-200 to-gray-100">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold flex items-center gap-2">
-                    {React.createElement(FaBarcode as any, { size: 14 })}
+                  <th className="px-4 py-3 text-left text-sm font-semibold">
+                    {React.createElement(FaBarcode as any, { size: 14, className: 'inline mr-2' })}
                     SKU
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold flex items-center gap-2">
-                    {React.createElement(FaBox as any, { size: 14 })}
+                  <th className="px-4 py-3 text-left text-sm font-semibold">
+                    {React.createElement(FaBox as any, { size: 14, className: 'inline mr-2' })}
                     Product Name
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Category</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold flex items-center justify-end gap-2">
-                    {React.createElement(FaDollarSign as any, { size: 14 })}
-                    Purchase Price
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold flex items-center justify-end gap-2">
-                    {React.createElement(FaDollarSign as any, { size: 14 })}
-                    Sale Price
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold flex items-center justify-center gap-2">
-                    {React.createElement(FaWarehouse as any, { size: 14 })}
+                  <th className="px-4 py-3 text-right text-sm font-semibold">Purchase Price (Rs.)</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold">Sale Price (Rs.)</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold">
+                    {React.createElement(FaWarehouse as any, { size: 14, className: 'inline mr-2' })}
                     Stock
                   </th>
                   <th className="px-4 py-3 text-center text-sm font-semibold">Status</th>
@@ -637,8 +680,8 @@ const Inventory: React.FC = () => {
                         <td className="px-4 py-3 text-sm font-medium">{product.sku}</td>
                         <td className="px-4 py-3 text-sm">{product.name}</td>
                         <td className="px-4 py-3 text-sm">{product.category}</td>
-                        <td className="px-4 py-3 text-sm text-right">Rs.{product.purchase_price_per_unit.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold">Rs.{product.sale_price_per_unit.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-right">{product.purchase_price_per_unit.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold">{product.sale_price_per_unit.toFixed(2)}</td>
                         <td className="px-4 py-3 text-center text-sm font-semibold">{product.quantity_available}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}>

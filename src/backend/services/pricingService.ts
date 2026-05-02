@@ -47,6 +47,8 @@ export class PricingService {
       productId: number;
       quantity: number;
       unitPrice: number;
+      discountPercentage?: number;
+      discountedPrice?: number;
     }>
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
@@ -60,6 +62,15 @@ export class PricingService {
 
       if (!product) {
         errors.push(`Product ${item.productId} not found`);
+        continue;
+      }
+
+      // Check maximum discount (20%)
+      const discountPercentage = item.discountPercentage || 0;
+      if (discountPercentage > 20) {
+        errors.push(
+          `${product.name}: Discount ${discountPercentage}% exceeds maximum allowed 20%`
+        );
         continue;
       }
 

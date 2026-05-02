@@ -44,18 +44,25 @@ export function useApi<T = any>(
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${backendUrl.current}${url}`, {
+        const fullUrl = `${backendUrl.current}${url}`;
+        console.log('[useApi] Fetching:', fullUrl);
+
+        const response = await fetch(fullUrl, {
           ...options,
           ...executeOptions,
           headers,
         });
 
+        console.log('[useApi] Response status:', response.status);
+
         if (!response.ok) {
           const errorData = await response.json();
+          console.log('[useApi] Error response:', errorData);
           throw new Error(errorData.error || 'API request failed');
         }
 
         const responseData = await response.json();
+        console.log('[useApi] Response data:', responseData);
         setData(responseData);
 
         executeOptions?.onSuccess?.(responseData);

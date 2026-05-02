@@ -80,7 +80,7 @@ export class RentalService {
 
     return this.db
       .prepare(query)
-      .all(status) as RentalItem[];
+      .all(...(status ? [status] : [])) as RentalItem[];
   }
 
   updateRentalItemStatus(
@@ -159,18 +159,18 @@ export class RentalService {
   getActiveRentals(): RentalTransaction[] {
     return this.db
       .prepare(
-        'SELECT * FROM rental_transactions WHERE rental_status = "active" ORDER BY rental_end_date ASC'
+        'SELECT * FROM rental_transactions WHERE rental_status = ? ORDER BY rental_end_date ASC'
       )
-      .all() as RentalTransaction[];
+      .all('active') as RentalTransaction[];
   }
 
   getOverdueRentals(): RentalTransaction[] {
     const today = new Date().toISOString().split('T')[0];
     return this.db
       .prepare(
-        'SELECT * FROM rental_transactions WHERE rental_status = "active" AND rental_end_date < ? ORDER BY rental_end_date ASC'
+        'SELECT * FROM rental_transactions WHERE rental_status = ? AND rental_end_date < ? ORDER BY rental_end_date ASC'
       )
-      .all(today) as RentalTransaction[];
+      .all('active', today) as RentalTransaction[];
   }
 
   // ============ RETURN & LATE FEES ============

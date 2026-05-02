@@ -63,6 +63,8 @@ export function initializeSchema(db: Database.Database): void {
       quantity INTEGER NOT NULL,
       unit_price REAL NOT NULL,
       subtotal REAL NOT NULL,
+      discount_percentage REAL DEFAULT 0,
+      discounted_price REAL,
       FOREIGN KEY (sale_id) REFERENCES sales(id),
       FOREIGN KEY (product_id) REFERENCES products(id)
     );
@@ -105,6 +107,17 @@ export function initializeSchema(db: Database.Database): void {
     );
   `);
 
+  // Categories
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   // Suppliers
   db.exec(`
     CREATE TABLE IF NOT EXISTS suppliers (
@@ -133,8 +146,10 @@ export function initializeSchema(db: Database.Database): void {
       old_value TEXT,
       new_value TEXT,
       ip_address TEXT,
-      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      admin_id INTEGER,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (admin_id) REFERENCES users(id)
     );
   `);
 

@@ -22,7 +22,15 @@ export interface JWTPayload {
   exp: number;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+// JWT_SECRET MUST be set in environment variables
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error(
+    'FATAL ERROR: JWT_SECRET environment variable is not set!\n' +
+    'Please set JWT_SECRET in your .env file before starting the application.\n' +
+    'Example: JWT_SECRET=your-super-secret-key-here-change-in-production'
+  );
+}
 const JWT_EXPIRY = '24h';
 
 export function generateToken(user: {

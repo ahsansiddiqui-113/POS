@@ -18,6 +18,9 @@ export function initializeDatabase(): Database.Database {
   const dbPath = path.join(appDataPath, 'pos.db');
   const isFirstRun = !fs.existsSync(dbPath);
 
+  console.log(`[DB] Database path: ${dbPath}`);
+  console.log(`[DB] Is first run: ${isFirstRun}`);
+
   db = new Database(dbPath);
 
   // Enable foreign keys
@@ -27,10 +30,18 @@ export function initializeDatabase(): Database.Database {
   db.pragma('journal_mode = WAL');
 
   if (isFirstRun) {
-    console.log('First run detected. Creating database schema...');
+    console.log('[DB] First run detected. Creating database schema...');
     initializeSchema(db);
     createIndexes(db);
-    console.log('Database initialized successfully');
+    console.log('[DB] Database initialized successfully');
+  } else {
+    console.log('[DB] Database already exists, checking if tables exist...');
+    try {
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+      console.log('[DB] Existing tables:', tables.map((t: any) => t.name).join(', '));
+    } catch (e) {
+      console.log('[DB] Error listing tables:', e);
+    }
   }
 
   return db;

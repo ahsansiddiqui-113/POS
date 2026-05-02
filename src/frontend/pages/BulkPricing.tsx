@@ -62,7 +62,7 @@ export default function BulkPricing() {
     const fetchProducts = async () => {
       try {
         const res = await fetch('/api/products?pageSize=1000', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
         });
         const data = await res.json();
         setProducts(data.products || []);
@@ -83,7 +83,7 @@ export default function BulkPricing() {
     setLoading(true);
     try {
       const res = await fetch('/api/bulk-pricing/report/all', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
       const data = await res.json();
       setReport(data);
@@ -97,7 +97,7 @@ export default function BulkPricing() {
     setLoading(true);
     try {
       const res = await fetch('/api/bulk-pricing/stats/wholesale', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
       const data = await res.json();
       setWholesaleStats(data);
@@ -124,7 +124,7 @@ export default function BulkPricing() {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -174,7 +174,7 @@ export default function BulkPricing() {
       const res = await fetch('/api/bulk-pricing', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
