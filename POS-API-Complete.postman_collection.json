@@ -1,0 +1,978 @@
+{
+  "info": {
+    "name": "POS System - Complete API",
+    "description": "Complete API collection for POS and Inventory Management System with all endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login - Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var jsonData = pm.response.json();",
+                  "  pm.environment.set(\"token\", jsonData.token);",
+                  "  pm.environment.set(\"userId\", jsonData.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login - Jewellery User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var jsonData = pm.response.json();",
+                  "  pm.environment.set(\"token\", jsonData.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"jewellery_user\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login - Cosmetics User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cosmetics_user\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/auth/me",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"password123\",\n  \"newPassword\": \"newpassword456\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/auth/change-password",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "auth", "change-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/products?page=1&pageSize=20",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "products"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Products by Name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/products?search=product&page=1&pageSize=20",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "products"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "product"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/products/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "products", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get Product by Barcode",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/products/barcode/123456789",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "products", "barcode", "123456789"]
+            }
+          }
+        },
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/products/categories",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "products", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SKU001\",\n  \"barcode\": \"123456789\",\n  \"name\": \"Diamond Ring\",\n  \"category\": \"Jewellery\",\n  \"purchase_price_per_unit\": 5000,\n  \"sale_price_per_unit\": 7500,\n  \"quantity_available\": 50,\n  \"low_stock_threshold\": 10\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/products",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "products"]
+            }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Diamond Ring\",\n  \"sale_price_per_unit\": 8000\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/products/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "products", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/products/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "products", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sales",
+      "item": [
+        {
+          "name": "Create Sale",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": 1,\n      \"quantity\": 2,\n      \"unitPrice\": 7500\n    }\n  ],\n  \"payment_method\": \"cash\",\n  \"total_amount\": 15000\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/sales",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "sales"]
+            }
+          }
+        },
+        {
+          "name": "Get Sale by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/sales/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "sales", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get Sales by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/sales?startDate=2024-01-01&endDate=2024-12-31",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "sales"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-12-31"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Daily Sales Total",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/sales-report/daily/2024-05-01",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "sales-report", "daily", "2024-05-01"]
+            }
+          }
+        },
+        {
+          "name": "Get Best Selling Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/reports/best-sellers?limit=10",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "reports", "best-sellers"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Category Performance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/reports/category-performance",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "reports", "category-performance"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Returns",
+      "item": [
+        {
+          "name": "Create Return",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sale_id\": 1,\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"reason\": \"Defective\",\n  \"userId\": 1\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/returns",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "returns"]
+            }
+          }
+        },
+        {
+          "name": "Get Return by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/returns/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "returns", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Purchases",
+      "item": [
+        {
+          "name": "Create Purchase",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplier_id\": 1,\n  \"product_id\": 1,\n  \"quantity\": 100,\n  \"total_bulk_price\": 400000,\n  \"unit_price\": 4000,\n  \"expiry_date\": \"2026-12-31\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/purchases",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "purchases"]
+            }
+          }
+        },
+        {
+          "name": "Get Purchase by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/purchases/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "purchases", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Suppliers",
+      "item": [
+        {
+          "name": "Get All Suppliers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/suppliers",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "suppliers"]
+            }
+          }
+        },
+        {
+          "name": "Get Supplier by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/suppliers/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "suppliers", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create Supplier",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Diamond Supplies Co\",\n  \"contact\": \"John Smith\",\n  \"email\": \"john@diamondsupplies.com\",\n  \"phone\": \"+1-555-0123\",\n  \"address\": \"123 Supplier St\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"postal_code\": \"10001\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/suppliers",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "suppliers"]
+            }
+          }
+        },
+        {
+          "name": "Update Supplier",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Diamond Supplies Co\",\n  \"phone\": \"+1-555-9999\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/suppliers/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "suppliers", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [
+        {
+          "name": "Get All Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/alerts",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "alerts"]
+            }
+          }
+        },
+        {
+          "name": "Get High Priority Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/alerts/high-priority",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "alerts", "high-priority"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Barcode",
+      "item": [
+        {
+          "name": "Generate Barcode",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"123456789\",\n  \"format\": \"code128\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/barcode/generate",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "barcode", "generate"]
+            }
+          }
+        },
+        {
+          "name": "Get Product Barcode",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/barcode/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "barcode", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Database",
+      "item": [
+        {
+          "name": "Get Database Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/database/stats",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get Database Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/database/info",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "info"]
+            }
+          }
+        },
+        {
+          "name": "Check Database Integrity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/database/check-integrity",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "check-integrity"]
+            }
+          }
+        },
+        {
+          "name": "Vacuum Database",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/database/vacuum",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "vacuum"]
+            }
+          }
+        },
+        {
+          "name": "Analyze Database",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/database/analyze",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "analyze"]
+            }
+          }
+        },
+        {
+          "name": "Create Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/database/backup",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "backup"]
+            }
+          }
+        },
+        {
+          "name": "List Backups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/database/backups",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "backups"]
+            }
+          }
+        },
+        {
+          "name": "Restore from Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"backupPath\": \"C:\\\\Users\\\\hp\\\\Documents\\\\POSBackups\\\\pos-backup.db\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/database/restore",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "restore"]
+            }
+          }
+        },
+        {
+          "name": "Get Table Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3001/api/database/table/products",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "table", "products"]
+            }
+          }
+        },
+        {
+          "name": "Archive Old Sales",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"daysOld\": 365\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/database/archive-sales",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "database", "archive-sales"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

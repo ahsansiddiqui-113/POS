@@ -1,0 +1,39 @@
+{
+  "appId": "com.pos.inventory",
+  "productName": "POS System",
+  "directories": {
+    "buildResources": "assets",
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "public/**/*",
+    "node_modules/**/*",
+    "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,test}",
+    "!node_modules/.cache"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "certificateFile": null,
+    "certificatePassword": null,
+    "signingHashAlgorithms": ["sha256"],
+    "sign": null
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "installerIcon": null,
+    "uninstallerIcon": null,
+    "installerHeader": null,
+    "installerSidebar": null,
+    "license": null
+  },
+  "publish": null
+}
