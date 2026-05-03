@@ -4,6 +4,7 @@ import os from 'os';
 import fs from 'fs';
 import { initializeSchema } from './schema';
 import { createIndexes } from './indexes';
+import { initializeSchemaExtensions } from './schema-extensions';
 
 let db: Database.Database;
 
@@ -35,12 +36,19 @@ export function initializeDatabase(): Database.Database {
     createIndexes(db);
     console.log('[DB] Database initialized successfully');
   } else {
-    console.log('[DB] Database already exists, checking if tables exist...');
+    console.log('[DB] Database already exists, checking schema...');
     try {
       const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
-      console.log('[DB] Existing tables:', tables.map((t: any) => t.name).join(', '));
+      const tableNames = tables.map((t: any) => t.name);
+      console.log('[DB] Existing tables:', tableNames.join(', '));
+
+      // Always run schema extensions to handle both new tables AND column additions
+      console.log('[DB] Running schema extensions to handle migrations...');
+      initializeSchemaExtensions(db);
+      createIndexes(db);
+      console.log('[DB] Schema extensions completed successfully');
     } catch (e) {
-      console.log('[DB] Error listing tables:', e);
+      console.log('[DB] Error checking/updating schema:', e);
     }
   }
 

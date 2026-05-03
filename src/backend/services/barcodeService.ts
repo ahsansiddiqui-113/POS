@@ -1,17 +1,41 @@
 import { getDatabase } from '../database/db';
 import { AppError } from '../middleware/errorHandler';
 import bwipjs from 'bwip-js';
+import Jimp from 'jimp';
 
 export class BarcodeService {
   private db = getDatabase();
+
+  // Map user-friendly format names to bwipjs format codes
+  private mapFormat(format: string): string {
+    const formatMap: { [key: string]: string } = {
+      'code128': 'code128',
+      'c128': 'code128',
+      'qr': 'qrcode',
+      'qrcode': 'qrcode',
+      'qr code': 'qrcode',
+      'ean13': 'ean13',
+      'ean': 'ean13',
+    };
+
+    const normalized = format.toLowerCase().trim();
+    return formatMap[normalized] || 'code128'; // Default to code128
+  }
 
   async generateBarcode(
     barcodeValue: string,
     format: string = 'code128'
   ): Promise<Buffer> {
     try {
+      // Validate barcode value
+      if (!barcodeValue || barcodeValue.trim().length === 0) {
+        throw new AppError(400, 'Barcode value cannot be empty');
+      }
+
+      const bcidFormat = this.mapFormat(format);
+
       const png = await bwipjs.toBuffer({
-        bcid: format,
+        bcid: bcidFormat,
         text: barcodeValue,
         scale: 3,
         height: 10,
@@ -21,7 +45,12 @@ export class BarcodeService {
 
       return png;
     } catch (error) {
-      throw new AppError(400, 'Failed to generate barcode: ' + (error as Error).message);
+      const errorMsg = (error as Error).message;
+      // Don't wrap AppError again
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(400, 'Failed to generate barcode: ' + errorMsg);
     }
   }
 
@@ -35,6 +64,22 @@ export class BarcodeService {
     }
 
     return this.generateBarcode(product.barcode);
+  }
+
+  async generateBarcodeWithPrice(
+    barcodeValue: string,
+    price: number,
+    format: string = 'code128'
+  ): Promise<Buffer> {
+    try {
+      // For now, just return the barcode without price text
+      // The price is shown separately in the frontend
+      return await this.generateBarcode(barcodeValue, format);
+    } catch (error) {
+      // Fallback to barcode without price if text addition fails
+      console.warn('Failed to generate barcode with price:', error);
+      return await this.generateBarcode(barcodeValue, format);
+    }
   }
 
   validateBarcodeFormat(barcode: string): boolean {

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 interface ApiOptions extends RequestInit {
   onSuccess?: (data: any) => void;
@@ -21,6 +22,7 @@ export function useApi<T = any>(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const { token } = useAuth();
+  const { showToast } = useToast();
   const backendUrl = useRef<string>('');
 
   const execute = useCallback(
@@ -58,6 +60,18 @@ export function useApi<T = any>(
         if (!response.ok) {
           const errorData = await response.json();
           console.log('[useApi] Error response:', errorData);
+
+          // Handle specific error codes
+          if (response.status === 403) {
+            const error = new Error('You do not have permission to access this feature');
+            (error as any).status = 403;
+            throw error;
+          } else if (response.status === 401) {
+            const error = new Error('Your session has expired. Please log in again');
+            (error as any).status = 401;
+            throw error;
+          }
+
           throw new Error(errorData.error || 'API request failed');
         }
 
@@ -70,6 +84,18 @@ export function useApi<T = any>(
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         setError(error);
+
+        // Show toast notification for errors
+        const status = (error as any).status;
+        if (status === 403) {
+          showToast('🔒 ' + error.message, 'error');
+        } else if (status === 401) {
+          showToast('⏰ ' + error.message, 'warning');
+        } else if (!executeOptions?.onError) {
+          // Only show generic error toast if no custom error handler
+          showToast('❌ ' + error.message, 'error');
+        }
+
         executeOptions?.onError?.(error);
         throw error;
       } finally {

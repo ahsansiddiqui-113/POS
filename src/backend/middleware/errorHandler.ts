@@ -19,7 +19,11 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
-  logger.error('Error caught by handler:', error);
+  if (error instanceof AppError) {
+    logger.error(`[AppError] ${error.statusCode}: ${error.message}`, error.details);
+  } else {
+    logger.error('Error caught by handler:', error.message || error);
+  }
 
   if (error instanceof ValidationException) {
     res.status(400).json({

@@ -34,6 +34,8 @@ export function initializeSchema(db: Database.Database): void {
       expiry_date DATE,
       batch_number TEXT,
       supplier_id INTEGER,
+      barcode_format TEXT DEFAULT 'CODE128',
+      barcode_image_path TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
@@ -46,11 +48,16 @@ export function initializeSchema(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       user_id INTEGER NOT NULL,
+      employee_id INTEGER,
       total_amount REAL NOT NULL,
-      payment_method TEXT,
+      primary_payment_method TEXT,
+      payment_method_count INTEGER DEFAULT 1,
+      has_split_payment INTEGER DEFAULT 0,
+      offline_mode INTEGER DEFAULT 0,
       items_count INTEGER,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (employee_id) REFERENCES employees(id)
     );
   `);
 

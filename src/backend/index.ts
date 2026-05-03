@@ -29,6 +29,12 @@ import { receiptPrinterService } from './services/receiptPrinterService';
 import { rentalService } from './services/rentalService';
 import { variantService } from './services/variantService';
 import { bulkPricingService } from './services/bulkPricingService';
+import { expenseService } from './services/expenseService';
+import { employeeService } from './services/employeeService';
+import { stockAlertService } from './services/stockAlertService';
+import { paymentMethodService } from './services/paymentMethodService';
+import { invoiceSettingsService } from './services/invoiceSettingsService';
+import { offlineService } from './services/offlineService';
 import auditRoutes from './routes/audit';
 import categoriesRoutes from './routes/categories';
 
@@ -304,6 +310,134 @@ export async function createApp(): Promise<Express> {
     })
   );
 
+  // Barcode endpoints (plural for frontend compatibility)
+  appInstance.post(
+    '/api/barcodes/:productId/generate',
+    asyncHandler(async (req: Request, res: Response) => {
+      const productId = parseInt(req.params.productId);
+      const { format, includePrice } = req.body;
+      const product = productService.getProduct(productId);
+
+      if (!product) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+
+      if (!product.barcode) {
+        return res.status(400).json({ error: 'Product does not have a barcode value' });
+      }
+
+      // Convert format to lowercase for bwipjs compatibility
+      const barcodeFormat = (format || 'code128').toLowerCase();
+
+      // Generate barcode with or without price
+      let png: Buffer;
+      if (includePrice !== false && product.sale_price_per_unit) {
+        // Include price by default if available
+        png = await barcodeService.generateBarcodeWithPrice(
+          product.barcode,
+          product.sale_price_per_unit,
+          barcodeFormat
+        );
+      } else {
+        png = await barcodeService.generateBarcode(product.barcode, barcodeFormat);
+      }
+
+      const base64 = png.toString('base64');
+      const dataUrl = `data:image/png;base64,${base64}`;
+
+      res.json({
+        productId,
+        productName: product.name,
+        barcode: product.barcode,
+        price: product.sale_price_per_unit,
+        format: barcodeFormat,
+        imageUrl: dataUrl,
+        generated: true,
+      });
+    })
+  );
+
+  appInstance.post(
+    '/api/barcodes/bulk-generate',
+    asyncHandler(async (req: Request, res: Response) => {
+      const { productIds, format } = req.body;
+
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ error: 'productIds must be a non-empty array' });
+      }
+
+      // Convert format to lowercase for bwipjs compatibility
+      const barcodeFormat = (format || 'code128').toLowerCase();
+
+      const barcodes = [];
+      for (const productId of productIds) {
+        try {
+          const product = productService.getProduct(productId);
+          if (product && product.barcode) {
+            const png = await barcodeService.generateBarcode(product.barcode, barcodeFormat);
+            const base64 = png.toString('base64');
+            const dataUrl = `data:image/png;base64,${base64}`;
+
+            barcodes.push({
+              productId,
+              productName: product.name,
+              barcode: product.barcode,
+              format: barcodeFormat,
+              imageUrl: dataUrl,
+              generated: true,
+            });
+          } else {
+            barcodes.push({
+              productId,
+              generated: false,
+              error: product ? 'Product does not have a barcode value' : 'Product not found',
+            });
+          }
+        } catch (error) {
+          barcodes.push({
+            productId,
+            generated: false,
+            error: (error as Error).message || 'Failed to generate barcode',
+          });
+        }
+      }
+
+      res.json(barcodes);
+    })
+  );
+
+  // Barcode Lookup - scan a barcode to find the product
+  appInstance.post(
+    '/api/barcodes/scan',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { barcode } = req.body;
+
+      if (!barcode || typeof barcode !== 'string') {
+        return res.status(400).json({ error: 'Barcode value is required' });
+      }
+
+      const product = productService.getProductByBarcode(barcode);
+
+      if (!product) {
+        return res.status(404).json({ error: 'Product not found for this barcode', barcode });
+      }
+
+      res.json({
+        found: true,
+        product: {
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          barcode: product.barcode,
+          sale_price_per_unit: product.sale_price_per_unit,
+          quantity_available: product.quantity_available,
+          category: product.category,
+        },
+      });
+    })
+  );
+
   // ======================
   // SALES ROUTES
   // ======================
@@ -553,6 +687,9 @@ export async function createApp(): Promise<Express> {
   const rentalRoutes = await import('./routes/rental').then(m => m.default);
   appInstance.use('/api/rental', rentalRoutes);
 
+  const customerRoutes = await import('./routes/customers').then(m => m.default);
+  appInstance.use('/api/rental/customers', customerRoutes);
+
   // ======================
   // VARIANTS ROUTES
   // ======================
@@ -702,6 +839,544 @@ export async function createApp(): Promise<Express> {
   );
 
   // ======================
+  // EXPENSE TRACKING ROUTES
+  // ======================
+
+  appInstance.post(
+    '/api/expenses',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const expense = expenseService.createExpense({
+        date: req.body.date,
+        categoryId: req.body.category_id || req.body.categoryId,
+        amount: req.body.amount,
+        description: req.body.description,
+        userId: req.user!.id,
+        receiptImagePath: req.body.receiptImagePath || req.body.receipt_image_path,
+      });
+      res.status(201).json(expense);
+    })
+  );
+
+  appInstance.get(
+    '/api/expenses',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const expenses = expenseService.getExpenses(limit, offset);
+      res.json(expenses);
+    })
+  );
+
+  appInstance.get(
+    '/api/expenses/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const expense = expenseService.getExpense(parseInt(req.params.id));
+      if (expense) {
+        res.json(expense);
+      } else {
+        res.status(404).json({ error: 'Expense not found' });
+      }
+    })
+  );
+
+  appInstance.put(
+    '/api/expenses/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const updateData: any = {};
+      if (req.body.date) updateData.date = req.body.date;
+      if (req.body.category_id || req.body.categoryId) updateData.categoryId = req.body.category_id || req.body.categoryId;
+      if (req.body.amount) updateData.amount = req.body.amount;
+      if (req.body.description !== undefined) updateData.description = req.body.description;
+      if (req.body.receiptImagePath || req.body.receipt_image_path) updateData.receiptImagePath = req.body.receiptImagePath || req.body.receipt_image_path;
+
+      const expense = expenseService.updateExpense(parseInt(req.params.id), updateData);
+      res.json(expense);
+    })
+  );
+
+  appInstance.delete(
+    '/api/expenses/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      expenseService.deleteExpense(parseInt(req.params.id));
+      res.json({ message: 'Expense deleted' });
+    })
+  );
+
+  appInstance.get(
+    '/api/expenses/report/monthly/:year/:month',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const report = expenseService.getMonthlyExpenseBreakdown(req.params.year, req.params.month);
+      res.json(report);
+    })
+  );
+
+  appInstance.get(
+    '/api/expenses/report/range',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { startDate, endDate } = req.query;
+      const report = expenseService.getExpenseReport(startDate as string, endDate as string);
+      res.json(report);
+    })
+  );
+
+  // Expense Categories
+  appInstance.post(
+    '/api/expense-categories',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const category = expenseService.createCategory(req.body.name, req.body.description);
+      res.status(201).json(category);
+    })
+  );
+
+  appInstance.get(
+    '/api/expense-categories',
+    asyncHandler(async (req: Request, res: Response) => {
+      const categories = expenseService.getAllCategories();
+      res.json(categories);
+    })
+  );
+
+  appInstance.put(
+    '/api/expense-categories/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const category = expenseService.updateCategory(parseInt(req.params.id), req.body.name, req.body.description);
+      res.json(category);
+    })
+  );
+
+  appInstance.delete(
+    '/api/expense-categories/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      expenseService.deleteCategory(parseInt(req.params.id));
+      res.json({ message: 'Category deleted' });
+    })
+  );
+
+  // ======================
+  // EMPLOYEE MANAGEMENT ROUTES
+  // ======================
+
+  appInstance.post(
+    '/api/employees',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const employee = employeeService.createEmployee({
+        userId: req.body.userId || req.body.user_id,
+        name: req.body.name || req.body.employee_name,
+        hireDate: req.body.hireDate || req.body.hire_date,
+        baseSalary: req.body.baseSalary || req.body.base_salary,
+        enableCommission: req.body.enableCommission || req.body.enable_commission,
+        commissionPercentage: req.body.commissionPercentage || req.body.commission_percentage,
+        phone: req.body.phone,
+        address: req.body.address,
+      });
+      res.status(201).json(employee);
+    })
+  );
+
+  appInstance.get(
+    '/api/employees',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const employees = employeeService.getAllEmployees();
+      res.json(employees);
+    })
+  );
+
+  appInstance.get(
+    '/api/employees/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const employee = employeeService.getEmployee(parseInt(req.params.id));
+      if (employee) {
+        res.json(employee);
+      } else {
+        res.status(404).json({ error: 'Employee not found' });
+      }
+    })
+  );
+
+  appInstance.put(
+    '/api/employees/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const updateData: any = { ...req.body };
+      // Normalize field names
+      if (req.body.name || req.body.employee_name) updateData.name = req.body.name || req.body.employee_name;
+      if (req.body.baseSalary || req.body.base_salary) updateData.baseSalary = req.body.baseSalary || req.body.base_salary;
+      if (req.body.enableCommission !== undefined || req.body.enable_commission !== undefined) updateData.enableCommission = req.body.enableCommission !== undefined ? req.body.enableCommission : req.body.enable_commission;
+      if (req.body.commissionPercentage || req.body.commission_percentage) updateData.commissionPercentage = req.body.commissionPercentage || req.body.commission_percentage;
+
+      const employee = employeeService.updateEmployee(parseInt(req.params.id), updateData);
+      res.json(employee);
+    })
+  );
+
+  // Employee Shifts
+  appInstance.post(
+    '/api/employees/:id/shifts',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const shift = employeeService.recordShift({
+        ...req.body,
+        employeeId: parseInt(req.params.id),
+      });
+      res.status(201).json(shift);
+    })
+  );
+
+  appInstance.get(
+    '/api/employees/:id/shifts',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { startDate, endDate } = req.query;
+      const shifts = employeeService.getEmployeeShifts(
+        parseInt(req.params.id),
+        startDate as string,
+        endDate as string
+      );
+      res.json(shifts);
+    })
+  );
+
+  appInstance.put(
+    '/api/shifts/:shiftId/status',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const shift = employeeService.updateShiftStatus(parseInt(req.params.shiftId), req.body.status);
+      res.json(shift);
+    })
+  );
+
+  // Employee Attendance
+  appInstance.post(
+    '/api/employees/:id/attendance',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const attendance = employeeService.recordAttendance({
+        ...req.body,
+        employeeId: parseInt(req.params.id),
+        recordedBy: req.user!.id,
+      });
+      res.status(201).json(attendance);
+    })
+  );
+
+  appInstance.get(
+    '/api/employees/:id/attendance',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { startDate, endDate } = req.query;
+      const attendance = employeeService.getEmployeeAttendance(
+        parseInt(req.params.id),
+        startDate as string,
+        endDate as string
+      );
+      res.json(attendance);
+    })
+  );
+
+  // Payroll
+  appInstance.get(
+    '/api/employees/:id/payroll/:year/:month',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const payroll = employeeService.calculatePayableAmount(
+        parseInt(req.params.id),
+        req.params.year,
+        req.params.month
+      );
+      res.json(payroll);
+    })
+  );
+
+  // Employee Sales Performance
+  appInstance.get(
+    '/api/employees/:id/performance',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { startDate, endDate } = req.query;
+      const performance = employeeService.getEmployeeSalesPerformance(
+        parseInt(req.params.id),
+        startDate as string,
+        endDate as string
+      );
+      res.json(performance);
+    })
+  );
+
+  // ======================
+  // PAYMENT METHODS ROUTES
+  // ======================
+
+  appInstance.get(
+    '/api/payment-methods',
+    asyncHandler(async (req: Request, res: Response) => {
+      const methods = paymentMethodService.getAllPaymentMethods();
+      res.json(methods);
+    })
+  );
+
+  appInstance.post(
+    '/api/payment-methods',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const method = paymentMethodService.createPaymentMethod(req.body.name);
+      res.status(201).json(method);
+    })
+  );
+
+  appInstance.put(
+    '/api/payment-methods/:id',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const method = paymentMethodService.updatePaymentMethod(parseInt(req.params.id), req.body);
+      res.json(method);
+    })
+  );
+
+  appInstance.get(
+    '/api/payment-methods/stats/usage',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { startDate, endDate } = req.query;
+      const stats = paymentMethodService.getPaymentMethodUsage(startDate as string, endDate as string);
+      res.json(stats);
+    })
+  );
+
+  // ======================
+  // INVOICE SETTINGS ROUTES
+  // ======================
+
+  appInstance.get(
+    '/api/invoice-settings',
+    asyncHandler(async (req: Request, res: Response) => {
+      const settings = invoiceSettingsService.getInvoiceSettings();
+      res.json(settings);
+    })
+  );
+
+  appInstance.put(
+    '/api/invoice-settings',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const settings = invoiceSettingsService.updateInvoiceSettings(req.body);
+      res.json(settings);
+    })
+  );
+
+  appInstance.post(
+    '/api/invoice-settings/logo',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      if (!req.body.logoData) {
+        throw new Error('Logo data required');
+      }
+      const logoPath = invoiceSettingsService.uploadLogo(
+        Buffer.from(req.body.logoData, 'base64'),
+        req.body.fileName || 'logo.png'
+      );
+      res.json({ logoPath });
+    })
+  );
+
+  appInstance.delete(
+    '/api/invoice-settings/logo',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const settings = invoiceSettingsService.removeLogo();
+      res.json(settings);
+    })
+  );
+
+  appInstance.get(
+    '/api/invoice/:saleId',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const html = invoiceSettingsService.generateInvoiceTemplate(parseInt(req.params.saleId));
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+    })
+  );
+
+  // ======================
+  // STOCK ALERTS ROUTES
+  // ======================
+
+  appInstance.get(
+    '/api/stock-alerts',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const resolved = req.query.resolved !== undefined ? parseInt(req.query.resolved as string) : undefined;
+      const alerts = stockAlertService.getAllAlerts(resolved);
+      res.json(alerts);
+    })
+  );
+
+  appInstance.get(
+    '/api/stock-alerts/low-stock',
+    asyncHandler(async (req: Request, res: Response) => {
+      const products = stockAlertService.checkLowStockProducts();
+      res.json(products);
+    })
+  );
+
+  appInstance.get(
+    '/api/stock-alerts/expiring',
+    asyncHandler(async (req: Request, res: Response) => {
+      const days = parseInt(req.query.days as string) || 30;
+      const products = stockAlertService.getExpiringProducts(days);
+      res.json(products);
+    })
+  );
+
+  appInstance.get(
+    '/api/stock-alerts/reorder-suggestions',
+    asyncHandler(async (req: Request, res: Response) => {
+      const suggestions = stockAlertService.getReorderSuggestions();
+      res.json(suggestions);
+    })
+  );
+
+  appInstance.get(
+    '/api/stock-alerts/summary',
+    asyncHandler(async (req: Request, res: Response) => {
+      const summary = stockAlertService.getAlertSummary();
+      res.json(summary);
+    })
+  );
+
+  appInstance.put(
+    '/api/stock-alerts/:id/resolve',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const alert = stockAlertService.resolveStockAlert(
+        parseInt(req.params.id),
+        req.user!.id,
+        req.body.notes
+      );
+      res.json(alert);
+    })
+  );
+
+  appInstance.post(
+    '/api/stock-alert-settings/:productId',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const setting = stockAlertService.createAlertSetting({
+        ...req.body,
+        productId: parseInt(req.params.productId),
+      });
+      res.status(201).json(setting);
+    })
+  );
+
+  appInstance.put(
+    '/api/stock-alert-settings/:productId',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const setting = stockAlertService.updateAlertSetting(parseInt(req.params.productId), req.body);
+      res.json(setting);
+    })
+  );
+
+  // ======================
+  // OFFLINE MODE ROUTES
+  // ======================
+
+  appInstance.get(
+    '/api/offline/status',
+    asyncHandler(async (req: Request, res: Response) => {
+      res.json({
+        offline_mode: offlineService.isOfflineMode(),
+        pending_operations: offlineService.getQueueSize(),
+        stats: offlineService.getSyncQueueStats(),
+      });
+    })
+  );
+
+  appInstance.get(
+    '/api/offline/queue',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const pending = offlineService.getPendingOperations();
+      res.json(pending);
+    })
+  );
+
+  appInstance.post(
+    '/api/offline/sync',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { queueIds } = req.body;
+      const count = offlineService.markMultipleAsSynced(queueIds || []);
+      res.json({
+        synced: count,
+        remaining: offlineService.getQueueSize(),
+      });
+    })
+  );
+
+  appInstance.get(
+    '/api/offline/debug',
+    authMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      if (req.user!.role !== 'Admin') {
+        throw new Error('Unauthorized');
+      }
+      const debugInfo = offlineService.getQueueDebugInfo();
+      res.json(debugInfo);
+    })
+  );
+
+  // ======================
   // DATABASE MANAGEMENT ROUTES (Admin only)
   // ======================
 
@@ -724,8 +1399,8 @@ export async function startBackend(port: number = 3000): Promise<void> {
     // Create and start Express app
     app = await createApp();
 
-    app.listen(port, () => {
-      logger.info(`Backend server running on http://localhost:${port}`);
+    app.listen(port, '0.0.0.0', () => {
+      logger.info(`Backend server running on http://0.0.0.0:${port} (accessible from any IP)`);
     });
   } catch (error) {
     logger.error('Failed to start backend:', error);

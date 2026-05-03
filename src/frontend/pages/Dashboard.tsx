@@ -18,6 +18,10 @@ import {
   FaPercent,
   FaTruck,
   FaUsers,
+  FaChartPie,
+  FaExclamationTriangle,
+  FaBarcode,
+  FaFileInvoice,
 } from 'react-icons/fa';
 
 interface Alert {
@@ -129,6 +133,39 @@ const Dashboard: React.FC = () => {
               <span className="text-sm">Settings</span>
             </button>
 
+            {/* New Features */}
+            <button
+              onClick={() => navigate('/expenses')}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+            >
+              {React.createElement(FaChartPie as any, { size: 24 })}
+              <span className="text-sm">Expenses</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/stock-alerts')}
+              className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+            >
+              {React.createElement(FaExclamationTriangle as any, { size: 24 })}
+              <span className="text-sm">Stock Alerts</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/barcodes')}
+              className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+            >
+              {React.createElement(FaBarcode as any, { size: 24 })}
+              <span className="text-sm">Barcodes</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/sales-analytics')}
+              className="bg-blue-700 hover:bg-blue-800 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+            >
+              {React.createElement(FaChartBar as any, { size: 24 })}
+              <span className="text-sm">Analytics</span>
+            </button>
+
             {/* Admin Only Section */}
             {user?.role === 'Admin' && (
               <>
@@ -194,6 +231,31 @@ const Dashboard: React.FC = () => {
                 >
                   {React.createElement(FaPercent as any, { size: 24 })}
                   <span className="text-sm">Pricing</span>
+                </button>
+
+                {/* New Admin Features */}
+                <button
+                  onClick={() => navigate('/employees')}
+                  className="bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaUsers as any, { size: 24 })}
+                  <span className="text-sm">Employees</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/invoice-settings')}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaFileInvoice as any, { size: 24 })}
+                  <span className="text-sm">Invoice Setup</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/store-settings')}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white p-4 rounded-lg font-semibold flex flex-col items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  {React.createElement(FaCogs as any, { size: 24 })}
+                  <span className="text-sm">Store Config</span>
                 </button>
               </>
             )}

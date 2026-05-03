@@ -38,6 +38,30 @@ router.post(
   }
 );
 
+// Update rental item details
+router.put(
+  '/items/:id',
+  authMiddleware,
+  requireRole('Admin'),
+  (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = {
+        daily_rental_price: req.body.daily_rental_price,
+        weekly_rental_price: req.body.weekly_rental_price,
+        monthly_rental_price: req.body.monthly_rental_price,
+        security_deposit: req.body.security_deposit,
+        condition: req.body.condition,
+      };
+      rentalService.updateRentalItem(id, updates);
+      const updated = rentalService.getRentalItem(id);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  }
+);
+
 // Update rental item status
 router.patch(
   '/items/:id/status',
@@ -48,6 +72,22 @@ router.patch(
       const { status } = req.body;
       rentalService.updateRentalItemStatus(parseInt(req.params.id), status);
       res.json({ message: 'Rental item status updated' });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  }
+);
+
+// Delete rental item
+router.delete(
+  '/items/:id',
+  authMiddleware,
+  requireRole('Admin'),
+  (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      rentalService.deleteRentalItem(id);
+      res.json({ message: 'Rental item deleted successfully' });
     } catch (error: any) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }

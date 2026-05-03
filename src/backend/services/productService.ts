@@ -183,6 +183,13 @@ export class ProductService {
     }
 
     try {
+      // Use provided barcode or auto-generate from SKU
+      let barcode = data.barcode;
+      if (!barcode) {
+        // If no barcode provided, use SKU as barcode (most common approach)
+        barcode = data.sku;
+      }
+
       const stmt = this.db.prepare(`
         INSERT INTO products (
           sku, barcode, name, category, sub_category, brand, description,
@@ -193,7 +200,7 @@ export class ProductService {
 
       stmt.run(
         data.sku,
-        data.barcode,
+        barcode,
         data.name,
         data.category,
         data.sub_category || null,

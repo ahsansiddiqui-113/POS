@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useApi from '../hooks/useApi';
+import ReceiptModal from '../components/ReceiptModal';
 
 interface CartItem {
   productId: number;
@@ -33,6 +34,8 @@ const POS: React.FC = () => {
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [selectedDiscount, setSelectedDiscount] = useState(0);
   const [discountError, setDiscountError] = useState<string | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [lastSale, setLastSale] = useState<any | null>(null);
 
   const { execute: searchProduct } = useApi('/api/products/barcode/:barcode');
   const { execute: createSale } = useApi('/api/sales', { method: 'POST' });
@@ -318,6 +321,25 @@ const POS: React.FC = () => {
 
       if (response) {
         setSuccess(`Sale #${response.id} completed! Total: Rs.${total.toFixed(2)}`);
+
+        // Store sale data and show receipt modal
+        const saleWithItems = {
+          id: response.id,
+          created_at: response.created_at || new Date().toISOString(),
+          total_amount: response.total_amount || total,
+          payment_method: paymentMethod,
+          items: cart.map((item, idx) => ({
+            id: idx,
+            product_name: item.name,
+            quantity: item.quantity,
+            unit_price: item.unitPrice,
+            discounted_price: item.discountedPrice,
+            discount_percentage: item.discountPercentage,
+          })),
+        };
+        setLastSale(saleWithItems);
+        setShowReceiptModal(true);
+
         setCart([]);
         setBarcodeInput('');
         barcodeInputRef.current?.focus();
@@ -771,6 +793,13 @@ const POS: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Receipt Modal */}
+      <ReceiptModal
+        isOpen={showReceiptModal}
+        sale={lastSale}
+        onClose={() => setShowReceiptModal(false)}
+      />
     </div>
   );
 };

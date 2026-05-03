@@ -214,4 +214,14 @@ router.get(
   })
 );
 
+// Sales Analytics endpoint
+router.get(
+  '/sales-analytics',
+  authMiddleware,
+  asyncHandler(async (req: Request, res: Response) => {
+    const analytics = reportService.getSalesAnalytics();
+    res.json(analytics);
+  })
+);
+
 export default router;

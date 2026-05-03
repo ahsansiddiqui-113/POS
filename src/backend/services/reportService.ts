@@ -533,6 +533,130 @@ export class ReportService {
       ]);
     }
   }
+
+  // Get comprehensive sales analytics
+  getSalesAnalytics(): any {
+    const today = new Date();
+    const thisYear = today.getFullYear();
+    const thisMonth = String(today.getMonth() + 1).padStart(2, '0');
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - today.getDay());
+
+    // Today's sales
+    const todayStr = today.toISOString().split('T')[0];
+    const todaySales = salesService.getSalesByDateRange(todayStr, todayStr);
+    const todayTotal = todaySales.reduce((sum, s) => sum + s.total_amount, 0);
+
+    // This week's sales
+    const weekEndDate = new Date(thisWeekStart);
+    weekEndDate.setDate(weekEndDate.getDate() + 6);
+    const weekStartStr = thisWeekStart.toISOString().split('T')[0];
+    const weekEndStr = weekEndDate.toISOString().split('T')[0];
+    const weekSales = salesService.getSalesByDateRange(weekStartStr, weekEndStr);
+    const weekTotal = weekSales.reduce((sum, s) => sum + s.total_amount, 0);
+
+    // This month's sales
+    const monthStart = `${thisYear}-${thisMonth}-01`;
+    const monthEnd = new Date(thisYear, parseInt(thisMonth), 0).toISOString().split('T')[0];
+    const monthSales = salesService.getSalesByDateRange(monthStart, monthEnd);
+    const monthTotal = monthSales.reduce((sum, s) => sum + s.total_amount, 0);
+
+    // This year's sales
+    const yearStart = `${thisYear}-01-01`;
+    const yearEnd = `${thisYear}-12-31`;
+    const yearSales = salesService.getSalesByDateRange(yearStart, yearEnd);
+    const yearTotal = yearSales.reduce((sum, s) => sum + s.total_amount, 0);
+
+    // All time sales
+    const allSales = this.db
+      .prepare(`SELECT SUM(total_amount) as total FROM sales`)
+      .get() as any;
+    const allTimeTotal = allSales?.total || 0;
+
+    // Daily totals for last 30 days
+    const dailyTotals = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const daySales = salesService.getSalesByDateRange(dateStr, dateStr);
+      const dayTotal = daySales.reduce((sum, s) => sum + s.total_amount, 0);
+      dailyTotals.push({
+        date: dateStr,
+        total: dayTotal,
+      });
+    }
+
+    // Weekly totals for last 12 weeks
+    const weeklyTotals = [];
+    for (let i = 11; i >= 0; i--) {
+      const weekEnd = new Date(today);
+      weekEnd.setDate(weekEnd.getDate() - i * 7);
+      const weekStart = new Date(weekEnd);
+      weekStart.setDate(weekStart.getDate() - 6);
+
+      const wStartStr = weekStart.toISOString().split('T')[0];
+      const wEndStr = weekEnd.toISOString().split('T')[0];
+      const wSales = salesService.getSalesByDateRange(wStartStr, wEndStr);
+      const wTotal = wSales.reduce((sum, s) => sum + s.total_amount, 0);
+
+      weeklyTotals.push({
+        week: `${wStartStr} to ${wEndStr}`,
+        total: wTotal,
+      });
+    }
+
+    // Monthly totals for last 12 months
+    const monthlyTotals = [];
+    for (let i = 11; i >= 0; i--) {
+      const mDate = new Date(today);
+      mDate.setMonth(mDate.getMonth() - i);
+      const mYear = mDate.getFullYear();
+      const mMonth = String(mDate.getMonth() + 1).padStart(2, '0');
+      const mStart = `${mYear}-${mMonth}-01`;
+      const mEnd = new Date(mYear, mDate.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      const mSales = salesService.getSalesByDateRange(mStart, mEnd);
+      const mTotal = mSales.reduce((sum, s) => sum + s.total_amount, 0);
+
+      const monthName = new Date(`${mYear}-${mMonth}-01`).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      monthlyTotals.push({
+        month: monthName,
+        total: mTotal,
+      });
+    }
+
+    // Yearly totals (all years with sales)
+    const yearlyTotals = [];
+    const yearsWithSales = this.db
+      .prepare(`SELECT DISTINCT STRFTIME('%Y', sale_date) as year FROM sales ORDER BY year`)
+      .all() as any[];
+
+    for (const row of yearsWithSales) {
+      const yYear = row.year;
+      const yStart = `${yYear}-01-01`;
+      const yEnd = `${yYear}-12-31`;
+      const ySales = salesService.getSalesByDateRange(yStart, yEnd);
+      const yTotal = ySales.reduce((sum, s) => sum + s.total_amount, 0);
+
+      yearlyTotals.push({
+        year: yYear,
+        total: yTotal,
+      });
+    }
+
+    return {
+      today: todayTotal,
+      thisWeek: weekTotal,
+      thisMonth: monthTotal,
+      thisYear: yearTotal,
+      allTime: allTimeTotal,
+      dailyTotals,
+      weeklyTotals,
+      monthlyTotals,
+      yearlyTotals,
+    };
+  }
 }
 
 export const reportService = new ReportService();

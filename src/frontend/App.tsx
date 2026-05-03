@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import SplashScreen from './components/SplashScreen';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -18,6 +19,13 @@ import AuditLog from './pages/AuditLog';
 import Categories from './pages/Categories';
 import Rental from './pages/Rental';
 import BulkPricing from './pages/BulkPricing';
+import ExpenseTracking from './pages/ExpenseTracking';
+import EmployeeManagement from './pages/EmployeeManagement';
+import BarcodeManagement from './pages/BarcodeManagement';
+import StockAlerts from './pages/StockAlerts';
+import InvoiceSettings from './pages/InvoiceSettings';
+import SalesAnalytics from './pages/SalesAnalytics';
+import StoreSettings from './pages/StoreSettings';
 
 const PrivateRoute: React.FC<{ element: React.ReactElement; allowedRoles?: string[] }> = ({
   element,
@@ -119,6 +127,34 @@ const AppContent: React.FC = () => {
         element={<PrivateRoute element={<BulkPricing />} allowedRoles={['Admin']} />}
       />
       <Route
+        path="/expenses"
+        element={<PrivateRoute element={<ExpenseTracking />} />}
+      />
+      <Route
+        path="/employees"
+        element={<PrivateRoute element={<EmployeeManagement />} allowedRoles={['Admin']} />}
+      />
+      <Route
+        path="/barcodes"
+        element={<PrivateRoute element={<BarcodeManagement />} />}
+      />
+      <Route
+        path="/stock-alerts"
+        element={<PrivateRoute element={<StockAlerts />} />}
+      />
+      <Route
+        path="/invoice-settings"
+        element={<PrivateRoute element={<InvoiceSettings />} allowedRoles={['Admin']} />}
+      />
+      <Route
+        path="/sales-analytics"
+        element={<PrivateRoute element={<SalesAnalytics />} />}
+      />
+      <Route
+        path="/store-settings"
+        element={<PrivateRoute element={<StoreSettings />} allowedRoles={['Admin']} />}
+      />
+      <Route
         path="/"
         element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />}
       />
@@ -149,7 +185,9 @@ const App: React.FC = () => {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );

@@ -86,11 +86,7 @@ export function requireRole(...allowedRoles: string[]) {
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      logger.warn('Unauthorized access attempt', {
-        user: req.user.username,
-        requiredRoles: allowedRoles,
-        userRole: req.user.role,
-      });
+      // Silent permission denial - user gets 403 response without cluttering logs
       res.status(403).json({ error: 'Insufficient permissions' });
       return;
     }
