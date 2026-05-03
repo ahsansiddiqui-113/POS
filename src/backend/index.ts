@@ -1384,6 +1384,20 @@ export async function createApp(): Promise<Express> {
   appInstance.use('/api/database', databaseRoutes);
 
   // ======================
+  // SERVE REACT BUILD
+  // ======================
+
+  // Serve static files from React build
+  const path = require('path');
+  const buildPath = path.join(__dirname, '../../build');
+  appInstance.use(express.static(buildPath));
+
+  // Serve index.html for all non-API routes
+  appInstance.get('*', (req: Request, res: Response) => {
+    res.sendFile(path.join(buildPath, 'index.html'));
+  });
+
+  // ======================
   // ERROR HANDLING
   // ======================
 

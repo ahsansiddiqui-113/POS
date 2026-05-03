@@ -6,7 +6,9 @@ import { closeDatabase } from '../backend/database/db';
 import { logger } from '../backend/utils/logger';
 
 let mainWindow: BrowserWindow | null = null;
-const BACKEND_PORT = isDev ? 3001 : 3000;
+const isProduction = process.env.NODE_ENV === 'production' || !isDev;
+const BACKEND_PORT = isProduction ? 3000 : 3001;
+const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -22,13 +24,12 @@ function createWindow(): void {
     icon: path.join(__dirname, '../../assets/icon.png'),
   });
 
-  const startUrl = isDev
-    ? `http://localhost:3000`
-    : `file://${path.join(__dirname, '../../build/index.html')}`;
+  const startUrl = BACKEND_URL;
 
   mainWindow.loadURL(startUrl);
 
-  if (isDev) {
+  // Only open dev tools in development
+  if (!isProduction) {
     mainWindow.webContents.openDevTools();
   }
 

@@ -76,6 +76,7 @@
   "build": {
     "appId": "com.pos.app",
     "productName": "POS System",
+    "asar": false,
     "files": [
       "build/**/*",
       "public/**/*",
