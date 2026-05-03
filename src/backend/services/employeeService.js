@@ -13,10 +13,10 @@ class EmployeeService {
             throw new errorHandler_1.AppError(400, 'Base salary must be greater than 0');
         }
         const stmt = this.db.prepare(`
-      INSERT INTO employees (user_id, hire_date, base_salary, enable_commission, commission_percentage, phone, address, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO employees (user_id, name, hire_date, base_salary, enable_commission, commission_percentage, phone, address, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `);
-        stmt.run(data.userId, data.hireDate, data.baseSalary, data.enableCommission || 0, data.commissionPercentage || 0, data.phone || null, data.address || null);
+        stmt.run(data.userId, data.name || null, data.hireDate, data.baseSalary, data.enableCommission || 0, data.commissionPercentage || 0, data.phone || null, data.address || null);
         const employeeId = this.db.prepare('SELECT last_insert_rowid() as id').get().id;
         return this.getEmployee(employeeId);
     }
@@ -32,7 +32,7 @@ class EmployeeService {
     }
     getAllEmployees() {
         return this.db
-            .prepare('SELECT * FROM employees WHERE status = "active" ORDER BY hire_date DESC')
+            .prepare("SELECT * FROM employees WHERE status = 'active' ORDER BY hire_date DESC")
             .all();
     }
     updateEmployee(id, data) {
@@ -42,6 +42,10 @@ class EmployeeService {
         }
         const updates = [];
         const values = [];
+        if (data.name !== undefined) {
+            updates.push('name = ?');
+            values.push(data.name || null);
+        }
         if (data.baseSalary !== undefined) {
             if (data.baseSalary <= 0) {
                 throw new errorHandler_1.AppError(400, 'Base salary must be greater than 0');

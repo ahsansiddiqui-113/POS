@@ -137,5 +137,10 @@ router.get('/category-performance', (0, errorHandler_1.asyncHandler)(async (req,
     const categories = reportService_1.reportService.getCategoryPerformanceReport();
     res.json(categories);
 }));
+// Sales Analytics endpoint
+router.get('/sales-analytics', auth_1.authMiddleware, (0, errorHandler_1.asyncHandler)(async (req, res) => {
+    const analytics = reportService_1.reportService.getSalesAnalytics();
+    res.json(analytics);
+}));
 exports.default = router;
 //# sourceMappingURL=reports.js.map

@@ -33,10 +33,50 @@ class RentalService {
             .prepare(query)
             .all(...(status ? [status] : []));
     }
+    updateRentalItem(id, updates) {
+        const fields = [];
+        const values = [];
+        if (updates.daily_rental_price !== undefined) {
+            fields.push('daily_rental_price = ?');
+            values.push(updates.daily_rental_price);
+        }
+        if (updates.weekly_rental_price !== undefined) {
+            fields.push('weekly_rental_price = ?');
+            values.push(updates.weekly_rental_price);
+        }
+        if (updates.monthly_rental_price !== undefined) {
+            fields.push('monthly_rental_price = ?');
+            values.push(updates.monthly_rental_price);
+        }
+        if (updates.security_deposit !== undefined) {
+            fields.push('security_deposit = ?');
+            values.push(updates.security_deposit);
+        }
+        if (updates.condition !== undefined) {
+            fields.push('condition = ?');
+            values.push(updates.condition);
+        }
+        if (fields.length === 0)
+            return;
+        fields.push('updated_at = CURRENT_TIMESTAMP');
+        values.push(id);
+        const query = `UPDATE rental_items SET ${fields.join(', ')} WHERE id = ?`;
+        this.db.prepare(query).run(...values);
+    }
     updateRentalItemStatus(id, status) {
         this.db
             .prepare('UPDATE rental_items SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
             .run(status, id);
+    }
+    deleteRentalItem(id) {
+        const item = this.getRentalItem(id);
+        if (!item) {
+            throw new errorHandler_1.AppError(404, 'Rental item not found');
+        }
+        if (item.status !== 'available') {
+            throw new errorHandler_1.AppError(400, 'Cannot delete rental item that is currently rented or in maintenance');
+        }
+        this.db.prepare('DELETE FROM rental_items WHERE id = ?').run(id);
     }
     // ============ RENTAL TRANSACTIONS ============
     createRentalTransaction(data) {

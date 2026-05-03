@@ -28,12 +28,42 @@ router.post('/items', auth_1.authMiddleware, (0, auth_1.requireRole)('Admin'), (
         res.status(error.statusCode || 500).json({ error: error.message || 'Failed to create rental item' });
     }
 });
+// Update rental item details
+router.put('/items/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('Admin'), (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const updates = {
+            daily_rental_price: req.body.daily_rental_price,
+            weekly_rental_price: req.body.weekly_rental_price,
+            monthly_rental_price: req.body.monthly_rental_price,
+            security_deposit: req.body.security_deposit,
+            condition: req.body.condition,
+        };
+        rentalService_1.rentalService.updateRentalItem(id, updates);
+        const updated = rentalService_1.rentalService.getRentalItem(id);
+        res.json(updated);
+    }
+    catch (error) {
+        res.status(error.statusCode || 500).json({ error: error.message });
+    }
+});
 // Update rental item status
 router.patch('/items/:id/status', auth_1.authMiddleware, (0, auth_1.requireRole)('Admin'), (req, res) => {
     try {
         const { status } = req.body;
         rentalService_1.rentalService.updateRentalItemStatus(parseInt(req.params.id), status);
         res.json({ message: 'Rental item status updated' });
+    }
+    catch (error) {
+        res.status(error.statusCode || 500).json({ error: error.message });
+    }
+});
+// Delete rental item
+router.delete('/items/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('Admin'), (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        rentalService_1.rentalService.deleteRentalItem(id);
+        res.json({ message: 'Rental item deleted successfully' });
     }
     catch (error) {
         res.status(error.statusCode || 500).json({ error: error.message });

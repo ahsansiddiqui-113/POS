@@ -2,7 +2,7 @@
   "name": "pos-inventory-system",
   "version": "1.0.0",
   "description": "Production-ready Desktop POS and Inventory Management System",
-  "main": "./build/electron.js",
+  "main": "./build/main/electron.js",
   "homepage": "./",
   "homepage-electron": "./",
   "author": "POS Team",
@@ -77,7 +77,6 @@
     "appId": "com.pos.app",
     "productName": "POS System",
     "files": [
-      "dist/**/*",
       "build/**/*",
       "public/**/*",
       "node_modules/**/*"
@@ -87,6 +86,7 @@
     },
     "win": {
       "target": [
+        "portable",
         "nsis"
       ]
     },

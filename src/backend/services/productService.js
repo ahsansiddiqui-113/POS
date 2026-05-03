@@ -107,6 +107,12 @@ class ProductService {
             throw new validators_1.ValidationException(errors);
         }
         try {
+            // Use provided barcode or auto-generate from SKU
+            let barcode = data.barcode;
+            if (!barcode) {
+                // If no barcode provided, use SKU as barcode (most common approach)
+                barcode = data.sku;
+            }
             const stmt = this.db.prepare(`
         INSERT INTO products (
           sku, barcode, name, category, sub_category, brand, description,
@@ -114,7 +120,7 @@ class ProductService {
           low_stock_threshold, expiry_date, batch_number, supplier_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
-            stmt.run(data.sku, data.barcode, data.name, data.category, data.sub_category || null, data.brand || null, data.description || null, data.purchase_price_per_unit, data.sale_price_per_unit, data.quantity_available || 0, data.low_stock_threshold || 10, data.expiry_date || null, data.batch_number || null, data.supplier_id || null);
+            stmt.run(data.sku, barcode, data.name, data.category, data.sub_category || null, data.brand || null, data.description || null, data.purchase_price_per_unit, data.sale_price_per_unit, data.quantity_available || 0, data.low_stock_threshold || 10, data.expiry_date || null, data.batch_number || null, data.supplier_id || null);
             const id = this.db.prepare('SELECT last_insert_rowid() as id').get().id;
             const product = this.getProduct(id);
             // Log the creation

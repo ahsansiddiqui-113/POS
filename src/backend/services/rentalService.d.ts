@@ -23,6 +23,7 @@ export interface RentalTransaction {
     late_fees: number;
     total_amount: number;
     rental_status: string;
+    item_condition_on_return?: string;
 }
 export declare class RentalService {
     private db;
@@ -38,7 +39,15 @@ export declare class RentalService {
     }): RentalItem;
     getRentalItem(id: number): RentalItem | null;
     getAllRentalItems(status?: string): RentalItem[];
+    updateRentalItem(id: number, updates: {
+        daily_rental_price?: number;
+        weekly_rental_price?: number;
+        monthly_rental_price?: number;
+        security_deposit?: number;
+        condition?: string;
+    }): void;
     updateRentalItemStatus(id: number, status: 'available' | 'rented' | 'maintenance' | 'archived'): void;
+    deleteRentalItem(id: number): void;
     createRentalTransaction(data: {
         rental_item_id: number;
         customer_name: string;

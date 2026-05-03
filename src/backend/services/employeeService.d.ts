@@ -1,6 +1,7 @@
 export interface Employee {
     id: number;
     user_id: number;
+    name?: string;
     hire_date: string;
     base_salary: number;
     enable_commission: number;
@@ -35,6 +36,7 @@ export declare class EmployeeService {
     private db;
     createEmployee(data: {
         userId: number;
+        name?: string;
         hireDate: string;
         baseSalary: number;
         enableCommission?: number;
@@ -46,6 +48,7 @@ export declare class EmployeeService {
     getEmployeeByUserId(userId: number): Employee | null;
     getAllEmployees(): Employee[];
     updateEmployee(id: number, data: {
+        name?: string;
         baseSalary?: number;
         enableCommission?: number;
         commissionPercentage?: number;

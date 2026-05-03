@@ -30,6 +30,7 @@ export declare class ReportService {
     private addInventoryExcel;
     private addCategoryExcel;
     private addBestSellersExcel;
+    getSalesAnalytics(): any;
 }
 export declare const reportService: ReportService;
 //# sourceMappingURL=reportService.d.ts.map

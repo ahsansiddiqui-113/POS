@@ -10,6 +10,7 @@ const os_1 = __importDefault(require("os"));
 const fs_1 = __importDefault(require("fs"));
 const schema_1 = require("./schema");
 const indexes_1 = require("./indexes");
+const schema_extensions_1 = require("./schema-extensions");
 let db;
 function initializeDatabase() {
     const appDataPath = path_1.default.join(os_1.default.homedir(), 'AppData', 'Local', 'POSApp');
@@ -33,13 +34,19 @@ function initializeDatabase() {
         console.log('[DB] Database initialized successfully');
     }
     else {
-        console.log('[DB] Database already exists, checking if tables exist...');
+        console.log('[DB] Database already exists, checking schema...');
         try {
             const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
-            console.log('[DB] Existing tables:', tables.map((t) => t.name).join(', '));
+            const tableNames = tables.map((t) => t.name);
+            console.log('[DB] Existing tables:', tableNames.join(', '));
+            // Always run schema extensions to handle both new tables AND column additions
+            console.log('[DB] Running schema extensions to handle migrations...');
+            (0, schema_extensions_1.initializeSchemaExtensions)(db);
+            (0, indexes_1.createIndexes)(db);
+            console.log('[DB] Schema extensions completed successfully');
         }
         catch (e) {
-            console.log('[DB] Error listing tables:', e);
+            console.log('[DB] Error checking/updating schema:', e);
         }
     }
     return db;

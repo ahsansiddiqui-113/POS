@@ -13,7 +13,12 @@ class AppError extends Error {
 }
 exports.AppError = AppError;
 function errorHandler(error, _req, res, _next) {
-    logger_1.logger.error('Error caught by handler:', error);
+    if (error instanceof AppError) {
+        logger_1.logger.error(`[AppError] ${error.statusCode}: ${error.message}`, error.details);
+    }
+    else {
+        logger_1.logger.error('Error caught by handler:', error.message || error);
+    }
     if (error instanceof validators_1.ValidationException) {
         res.status(400).json({
             error: 'Validation failed',

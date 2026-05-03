@@ -136,6 +136,7 @@ function initializeSchemaExtensions(db) {
     CREATE TABLE IF NOT EXISTS employees (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER UNIQUE NOT NULL,
+      name TEXT,
       hire_date DATE NOT NULL,
       base_salary REAL NOT NULL,
       enable_commission INTEGER DEFAULT 0,
@@ -148,6 +149,32 @@ function initializeSchemaExtensions(db) {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
+    // Add name column to employees if it doesn't exist (for existing databases)
+    try {
+        db.prepare('ALTER TABLE employees ADD COLUMN name TEXT').run();
+    }
+    catch (e) {
+        // Column already exists
+    }
+    // Add discount_percentage and discounted_price to sale_items if they don't exist
+    try {
+        const columns = db
+            .prepare("PRAGMA table_info(sale_items)")
+            .all();
+        const hasDiscountPercentage = columns.some(col => col.name === 'discount_percentage');
+        const hasDiscountedPrice = columns.some(col => col.name === 'discounted_price');
+        if (!hasDiscountPercentage) {
+            db.prepare('ALTER TABLE sale_items ADD COLUMN discount_percentage REAL DEFAULT 0').run();
+            console.log('✅ Added discount_percentage column to sale_items');
+        }
+        if (!hasDiscountedPrice) {
+            db.prepare('ALTER TABLE sale_items ADD COLUMN discounted_price REAL').run();
+            console.log('✅ Added discounted_price column to sale_items');
+        }
+    }
+    catch (e) {
+        console.error('❌ Error adding columns to sale_items:', e.message);
+    }
     // Employee Shifts
     db.exec(`
     CREATE TABLE IF NOT EXISTS employee_shifts (
@@ -176,6 +203,21 @@ function initializeSchemaExtensions(db) {
       FOREIGN KEY (employee_id) REFERENCES employees(id),
       FOREIGN KEY (recorded_by) REFERENCES users(id),
       UNIQUE(employee_id, attendance_date)
+    );
+  `);
+    // Customers Table (for rental tracking)
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS rental_customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT UNIQUE,
+      address TEXT,
+      total_rentals INTEGER DEFAULT 0,
+      total_spent REAL DEFAULT 0,
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
     // Invoice Settings (global)
@@ -273,6 +315,13 @@ function initializeSchemaExtensions(db) {
       FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id)
     );
   `);
+    // Add customer_id to rental_transactions if not exists
+    try {
+        db.prepare('ALTER TABLE rental_transactions ADD COLUMN customer_id INTEGER').run();
+    }
+    catch (e) {
+        // Column already exists
+    }
     // Create indexes for better performance
     db.exec(`
     CREATE INDEX IF NOT EXISTS idx_variant_product_id ON product_variants(product_id);
@@ -281,9 +330,11 @@ function initializeSchemaExtensions(db) {
     CREATE INDEX IF NOT EXISTS idx_rental_trans_item ON rental_transactions(rental_item_id);
     CREATE INDEX IF NOT EXISTS idx_rental_trans_status ON rental_transactions(rental_status);
     CREATE INDEX IF NOT EXISTS idx_rental_trans_date ON rental_transactions(rental_start_date);
+    CREATE INDEX IF NOT EXISTS idx_rental_trans_customer ON rental_transactions(customer_id);
     CREATE INDEX IF NOT EXISTS idx_bulk_product ON bulk_pricing(product_id);
     CREATE INDEX IF NOT EXISTS idx_sample_entity ON sample_data_markers(entity_type, entity_id);
     CREATE INDEX IF NOT EXISTS idx_brand_performance ON brand_performance(brand_name, month);
+    CREATE INDEX IF NOT EXISTS idx_rental_customer ON rental_customers(email);
 
     -- New feature indexes
     CREATE INDEX IF NOT EXISTS idx_expense_date ON expenses(date);
@@ -325,9 +376,9 @@ function initializeSchemaExtensions(db) {
     const settingsCount = db.prepare('SELECT COUNT(*) as count FROM invoice_settings').get().count;
     if (settingsCount === 0) {
         db.prepare(`
-      INSERT INTO invoice_settings (company_name, payment_terms)
-      VALUES (?, ?)
-    `).run('Walmart', 'Payment Due Upon Receipt');
+      INSERT INTO invoice_settings (company_name, address, phone, payment_terms, footer_text)
+      VALUES (?, ?, ?, ?, ?)
+    `).run('WALMART', 'Post Office Road in Stylo Basement', '03035577787', 'Payment Due Upon Receipt', 'Thank you for your purchase!');
         console.log('✅ Default invoice settings created');
     }
     // Insert default barcode settings

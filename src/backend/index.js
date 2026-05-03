@@ -226,6 +226,105 @@ async function createApp() {
         const png = await barcodeService_1.barcodeService.generateBarcode(value, format);
         res.type('image/png').send(png);
     }));
+    // Barcode endpoints (plural for frontend compatibility)
+    appInstance.post('/api/barcodes/:productId/generate', (0, errorHandler_1.asyncHandler)(async (req, res) => {
+        const productId = parseInt(req.params.productId);
+        const { format, includePrice } = req.body;
+        const product = productService_1.productService.getProduct(productId);
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        if (!product.barcode) {
+            return res.status(400).json({ error: 'Product does not have a barcode value' });
+        }
+        // Convert format to lowercase for bwipjs compatibility
+        const barcodeFormat = (format || 'code128').toLowerCase();
+        // Generate barcode with or without price
+        let png;
+        if (includePrice !== false && product.sale_price_per_unit) {
+            // Include price by default if available
+            png = await barcodeService_1.barcodeService.generateBarcodeWithPrice(product.barcode, product.sale_price_per_unit, barcodeFormat);
+        }
+        else {
+            png = await barcodeService_1.barcodeService.generateBarcode(product.barcode, barcodeFormat);
+        }
+        const base64 = png.toString('base64');
+        const dataUrl = `data:image/png;base64,${base64}`;
+        res.json({
+            productId,
+            productName: product.name,
+            barcode: product.barcode,
+            price: product.sale_price_per_unit,
+            format: barcodeFormat,
+            imageUrl: dataUrl,
+            generated: true,
+        });
+    }));
+    appInstance.post('/api/barcodes/bulk-generate', (0, errorHandler_1.asyncHandler)(async (req, res) => {
+        const { productIds, format } = req.body;
+        if (!Array.isArray(productIds) || productIds.length === 0) {
+            return res.status(400).json({ error: 'productIds must be a non-empty array' });
+        }
+        // Convert format to lowercase for bwipjs compatibility
+        const barcodeFormat = (format || 'code128').toLowerCase();
+        const barcodes = [];
+        for (const productId of productIds) {
+            try {
+                const product = productService_1.productService.getProduct(productId);
+                if (product && product.barcode) {
+                    const png = await barcodeService_1.barcodeService.generateBarcode(product.barcode, barcodeFormat);
+                    const base64 = png.toString('base64');
+                    const dataUrl = `data:image/png;base64,${base64}`;
+                    barcodes.push({
+                        productId,
+                        productName: product.name,
+                        barcode: product.barcode,
+                        format: barcodeFormat,
+                        imageUrl: dataUrl,
+                        generated: true,
+                    });
+                }
+                else {
+                    barcodes.push({
+                        productId,
+                        generated: false,
+                        error: product ? 'Product does not have a barcode value' : 'Product not found',
+                    });
+                }
+            }
+            catch (error) {
+                barcodes.push({
+                    productId,
+                    generated: false,
+                    error: error.message || 'Failed to generate barcode',
+                });
+            }
+        }
+        res.json(barcodes);
+    }));
+    // Barcode Lookup - scan a barcode to find the product
+    appInstance.post('/api/barcodes/scan', auth_1.authMiddleware, (0, errorHandler_1.asyncHandler)(async (req, res) => {
+        const { barcode } = req.body;
+        if (!barcode || typeof barcode !== 'string') {
+            return res.status(400).json({ error: 'Barcode value is required' });
+        }
+        const product = productService_1.productService.getProductByBarcode(barcode);
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found for this barcode', barcode });
+        }
+        res.json({
+            found: true,
+            product: {
+                id: product.id,
+                name: product.name,
+                sku: product.sku,
+                barcode: product.barcode,
+                sale_price_per_unit: product.sale_price_per_unit,
+                quantity_available: product.quantity_available,
+                category: product.category,
+            },
+        });
+    }));
     // ======================
     // SALES ROUTES
     // ======================
@@ -390,6 +489,8 @@ async function createApp() {
     // ======================
     const rentalRoutes = await Promise.resolve().then(() => __importStar(require('./routes/rental'))).then(m => m.default);
     appInstance.use('/api/rental', rentalRoutes);
+    const customerRoutes = await Promise.resolve().then(() => __importStar(require('./routes/customers'))).then(m => m.default);
+    appInstance.use('/api/rental/customers', customerRoutes);
     // ======================
     // VARIANTS ROUTES
     // ======================
@@ -478,8 +579,12 @@ async function createApp() {
     // ======================
     appInstance.post('/api/expenses', auth_1.authMiddleware, (0, errorHandler_1.asyncHandler)(async (req, res) => {
         const expense = expenseService_1.expenseService.createExpense({
-            ...req.body,
+            date: req.body.date,
+            categoryId: req.body.category_id || req.body.categoryId,
+            amount: req.body.amount,
+            description: req.body.description,
             userId: req.user.id,
+            receiptImagePath: req.body.receiptImagePath || req.body.receipt_image_path,
         });
         res.status(201).json(expense);
     }));
@@ -499,7 +604,18 @@ async function createApp() {
         }
     }));
     appInstance.put('/api/expenses/:id', auth_1.authMiddleware, (0, errorHandler_1.asyncHandler)(async (req, res) => {
-        const expense = expenseService_1.expenseService.updateExpense(parseInt(req.params.id), req.body);
+        const updateData = {};
+        if (req.body.date)
+            updateData.date = req.body.date;
+        if (req.body.category_id || req.body.categoryId)
+            updateData.categoryId = req.body.category_id || req.body.categoryId;
+        if (req.body.amount)
+            updateData.amount = req.body.amount;
+        if (req.body.description !== undefined)
+            updateData.description = req.body.description;
+        if (req.body.receiptImagePath || req.body.receipt_image_path)
+            updateData.receiptImagePath = req.body.receiptImagePath || req.body.receipt_image_path;
+        const expense = expenseService_1.expenseService.updateExpense(parseInt(req.params.id), updateData);
         res.json(expense);
     }));
     appInstance.delete('/api/expenses/:id', auth_1.authMiddleware, (0, errorHandler_1.asyncHandler)(async (req, res) => {
@@ -545,7 +661,16 @@ async function createApp() {
         if (req.user.role !== 'Admin') {
             throw new Error('Unauthorized');
         }
-        const employee = employeeService_1.employeeService.createEmployee(req.body);
+        const employee = employeeService_1.employeeService.createEmployee({
+            userId: req.body.userId || req.body.user_id,
+            name: req.body.name || req.body.employee_name,
+            hireDate: req.body.hireDate || req.body.hire_date,
+            baseSalary: req.body.baseSalary || req.body.base_salary,
+            enableCommission: req.body.enableCommission || req.body.enable_commission,
+            commissionPercentage: req.body.commissionPercentage || req.body.commission_percentage,
+            phone: req.body.phone,
+            address: req.body.address,
+        });
         res.status(201).json(employee);
     }));
     appInstance.get('/api/employees', auth_1.authMiddleware, (0, errorHandler_1.asyncHandler)(async (req, res) => {
@@ -565,7 +690,17 @@ async function createApp() {
         if (req.user.role !== 'Admin') {
             throw new Error('Unauthorized');
         }
-        const employee = employeeService_1.employeeService.updateEmployee(parseInt(req.params.id), req.body);
+        const updateData = { ...req.body };
+        // Normalize field names
+        if (req.body.name || req.body.employee_name)
+            updateData.name = req.body.name || req.body.employee_name;
+        if (req.body.baseSalary || req.body.base_salary)
+            updateData.baseSalary = req.body.baseSalary || req.body.base_salary;
+        if (req.body.enableCommission !== undefined || req.body.enable_commission !== undefined)
+            updateData.enableCommission = req.body.enableCommission !== undefined ? req.body.enableCommission : req.body.enable_commission;
+        if (req.body.commissionPercentage || req.body.commission_percentage)
+            updateData.commissionPercentage = req.body.commissionPercentage || req.body.commission_percentage;
+        const employee = employeeService_1.employeeService.updateEmployee(parseInt(req.params.id), updateData);
         res.json(employee);
     }));
     // Employee Shifts
@@ -767,8 +902,8 @@ async function startBackend(port = 3000) {
         logger_1.logger.info('Database initialized');
         // Create and start Express app
         exports.app = await createApp();
-        exports.app.listen(port, () => {
-            logger_1.logger.info(`Backend server running on http://localhost:${port}`);
+        exports.app.listen(port, '0.0.0.0', () => {
+            logger_1.logger.info(`Backend server running on http://0.0.0.0:${port} (accessible from any IP)`);
         });
     }
     catch (error) {
